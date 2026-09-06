@@ -5,6 +5,7 @@
 import { createElement, showToast } from '../utils/dom';
 import { schoolService } from '../services/schoolService';
 import { spreadsheetService } from '../services/spreadsheet';
+import { authService } from '../services/authService';
 import { formatRupiah } from '../utils/formatter';
 
 /** Render School Settings / Identity Edit Page */
@@ -125,18 +126,43 @@ export function renderSchoolSettings(): HTMLElement {
         </form>
       </div>
 
-      <!-- Right: Live Receipt Preview Box -->
-      <div class="card" style="border: 1px solid var(--color-primary-light);">
-        <div class="section-header">
-          <h3 class="section-title">👁️ Preview Kop & Tanda Tangan Kuitansi</h3>
+      <!-- Right: Live Receipt Preview Box & Security -->
+      <div style="display: flex; flex-direction: column; gap: var(--space-6);">
+        <div class="card" style="border: 1px solid var(--color-primary-light);">
+          <div class="section-header">
+            <h3 class="section-title">👁️ Preview Kop & Tanda Tangan Kuitansi</h3>
+          </div>
+
+          <div class="receipt-live-preview" id="live-receipt-preview">
+            <!-- Rendered live -->
+          </div>
+
+          <div class="text-xs text-muted mt-3 text-center">
+            💡 Tampilan di atas adalah contoh kop kuitansi resmi yang akan dicetak saat siswa atau admin mencetak bukti bayar.
+          </div>
         </div>
 
-        <div class="receipt-live-preview" id="live-receipt-preview">
-          <!-- Rendered live -->
-        </div>
-
-        <div class="text-xs text-muted mt-3 text-center">
-          💡 Tampilan di atas adalah contoh kop kuitansi resmi yang akan dicetak saat siswa atau admin mencetak bukti bayar.
+        <!-- Security & Password Card -->
+        <div class="card" style="border: 1px solid var(--color-border);">
+          <div class="section-header">
+            <h3 class="section-title">🔐 Keamanan Akun Administrator</h3>
+          </div>
+          <p class="text-xs text-muted mb-4">
+            Ubah kata sandi login Admin untuk menjaga keamanan akses dashboard dan pembukuan kasir.
+          </p>
+          <form id="form-admin-password">
+            <div class="form-group">
+              <label class="form-label">Password Lama *</label>
+              <input type="password" class="form-input" id="input-old-pass" placeholder="Password saat ini" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password Baru *</label>
+              <input type="password" class="form-input" id="input-new-pass" placeholder="Minimal 4 karakter" required>
+            </div>
+            <button type="submit" class="btn btn-secondary" style="width: 100%;">
+              🔑 Perbarui Password Admin
+            </button>
+          </form>
         </div>
       </div>
     </div>
@@ -267,6 +293,26 @@ export function renderSchoolSettings(): HTMLElement {
     document.title = `Identitas Sekolah — ${updated.namaSekolah}`;
 
     showToast(`Data Identitas & Database "${updated.namaSekolah}" berhasil disimpan!`, 'success');
+  });
+
+  // Handle Admin Password Change
+  const formPassword = container.querySelector('#form-admin-password') as HTMLFormElement;
+  const inputOldPass = container.querySelector('#input-old-pass') as HTMLInputElement;
+  const inputNewPass = container.querySelector('#input-new-pass') as HTMLInputElement;
+
+  formPassword.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const oldP = inputOldPass.value;
+    const newP = inputNewPass.value;
+
+    const result = authService.updateAdminPassword(oldP, newP);
+    if (!result.success) {
+      showToast(result.error || 'Gagal mengubah password', 'error');
+      return;
+    }
+
+    showToast('Password Admin berhasil diperbarui!', 'success');
+    formPassword.reset();
   });
 
   return container;

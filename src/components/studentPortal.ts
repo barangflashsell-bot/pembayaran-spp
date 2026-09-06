@@ -7,6 +7,8 @@ import { formatRupiah, formatDateShort, generateTransactionId, toISODate, getCur
 import { spreadsheetService } from '../services/spreadsheet';
 import { notificationService } from '../services/notification';
 import { schoolService } from '../services/schoolService';
+import { authService } from '../services/authService';
+import { router } from '../utils/router';
 import { MONTHS } from '../config/constants';
 import { renderReceipt } from './receipt';
 import type { Student, Payment, PaymentMethod, PaymentItemDetail, MonthName } from '../types';
@@ -329,8 +331,14 @@ export function renderStudentPortal(): HTMLElement {
   const gatewayModalBody = container.querySelector('#gateway-modal-body') as HTMLElement;
   const btnCloseGateway = container.querySelector('#btn-close-gateway') as HTMLButtonElement;
 
-  // Load Quick Student Chips
-  loadQuickStudents();
+  // Check if student already authenticated in authService
+  const sessionStudent = authService.getCurrentStudent();
+  if (sessionStudent) {
+    activateStudentSession(sessionStudent);
+  } else {
+    // Load Quick Student Chips for demo/convenience
+    loadQuickStudents();
+  }
 
   // Handle Login via Form
   loginForm.addEventListener('submit', async (e) => {
@@ -444,21 +452,8 @@ export function renderStudentPortal(): HTMLElement {
     });
   }
 
-  /** Login student by NIS or Name */
-  async function loginStudent(query: string) {
-    const students = await spreadsheetService.getStudents();
-    const q = query.trim().toLowerCase();
-
-    // Exact match on NIS or case-insensitive match on Name
-    const matched = students.find(
-      (s) => s.nis.toLowerCase() === q || s.nama.toLowerCase().includes(q)
-    );
-
-    if (!matched) {
-      showToast(`Siswa dengan nama atau NIS "${query}" tidak ditemukan`, 'error');
-      return;
-    }
-
+  /** Activate student session in UI */
+  async function activateStudentSession(matched: Student) {
     currentStudent = matched;
     loginCard.style.display = 'none';
     sessionArea.style.display = 'block';
@@ -470,17 +465,35 @@ export function renderStudentPortal(): HTMLElement {
 
     // Fetch payments of this student
     await refreshStudentData();
+  }
 
-    showToast(`Selamat datang, ${matched.nama}!`, 'success');
+  /** Login student by NIS or Name */
+  async function loginStudent(query: string) {
+    const res = await authService.loginAsStudent(query);
+    if (!res.success || !res.student) {
+      showToast(res.error || 'Siswa tidak ditemukan', 'error');
+      return;
+    }
+
+    await activateStudentSession(res.student);
+    showToast(`Selamat datang, ${res.student.nama}!`, 'success');
   }
 
   function logoutStudent() {
     currentStudent = null;
-    sessionArea.style.display = 'none';
-    loginCard.style.display = 'block';
-    inputIdentity.value = '';
-    selectedItems.clear();
-    updateSummaryUI();
+    const role = authService.getRole();
+    if (role === 'admin') {
+      sessionArea.style.display = 'none';
+      loginCard.style.display = 'block';
+      inputIdentity.value = '';
+      selectedItems.clear();
+      updateSummaryUI();
+      showToast('Selesai pratinjau akun siswa', 'info');
+    } else {
+      authService.logout();
+      showToast('Anda telah keluar dari akun siswa', 'info');
+      router.navigate('/login');
+    }
   }
 
   /** Refresh data: check paid months and payment history */

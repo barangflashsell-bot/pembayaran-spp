@@ -1483,3 +1483,162 @@
   background: rgba(99, 102, 241, 0.2);
 }
 
+/* ==========================================
+   Universal Login Page & Role Tabs
+   ========================================== */
+.login-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-4);
+  background: radial-gradient(circle at 50% 20%, rgba(99, 102, 241, 0.15), transparent 70%),
+              radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.1), transparent 50%),
+              var(--color-bg-primary);
+}
+
+.login-card-wrapper {
+  width: 100%;
+  max-width: 520px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(99, 102, 241, 0.15);
+  backdrop-filter: blur(16px);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-card-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-primary);
+}
+
+.login-header {
+  margin-bottom: var(--space-6);
+}
+
+.login-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-2xl);
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin: 0 auto var(--space-4);
+  box-shadow: var(--shadow-glow);
+}
+
+.login-school-name {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+  line-height: var(--line-height-tight);
+}
+
+.login-school-sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.login-tagline-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-light);
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+}
+
+/* Role Selector Tabs */
+.login-role-tabs {
+  display: flex;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-xl);
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: var(--space-6);
+  border: 1px solid var(--color-border);
+}
+
+.role-tab-btn {
+  flex: 1;
+  padding: var(--space-3) var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  font-family: inherit;
+}
+
+.role-tab-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.role-tab-btn.active {
+  background: var(--color-surface-3);
+  color: var(--color-primary-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Login Form Box */
+.login-form-box {
+  animation: fadeIn 0.25s ease;
+}
+
+.login-box-header {
+  margin-bottom: var(--space-5);
+  text-align: left;
+}
+
+.box-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.box-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.login-role-notice {
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: 11px;
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-muted);
+}
+
+.login-role-notice strong {
+  color: var(--color-text-primary);
+}
+
+.quick-students-section {
+  background: rgba(0, 0, 0, 0.15);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+}
+

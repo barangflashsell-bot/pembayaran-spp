@@ -3,7 +3,7 @@
 // ==========================================
 
 import { router } from './utils/router';
-import { $ } from './utils/dom';
+import { $, showToast } from './utils/dom';
 import { renderSidebar, renderMobileMenuBtn, renderSidebarOverlay, updateActiveNav } from './components/sidebar';
 import { renderDashboard } from './components/dashboard';
 import { renderStudents } from './components/students';
@@ -12,14 +12,22 @@ import { renderHistory } from './components/history';
 import { renderStudentPortal } from './components/studentPortal';
 import { renderBillableManager } from './components/billableManager';
 import { renderSchoolSettings } from './components/schoolSettings';
+import { renderLogin } from './components/login';
 import { notificationService } from './services/notification';
 import { schoolService } from './services/schoolService';
 import { spreadsheetService } from './services/spreadsheet';
+import { authService } from './services/authService';
 
 /** Initialize the application */
 export function initApp(): void {
   // Register routes
   router.registerAll([
+    {
+      path: '/login',
+      title: 'Masuk Akun',
+      icon: '🔑',
+      render: renderLogin,
+    },
     {
       path: '/',
       title: 'Dashboard',
@@ -82,8 +90,38 @@ export function initApp(): void {
   main.id = 'main-content';
   app.appendChild(main);
 
-  // Route change handler
+  // Route change handler with Authentication & Role Guards
   router.onRouteChange((path) => {
+    const role = authService.getRole();
+
+    // 1. Unauthenticated users can only access /login
+    if (!role) {
+      if (path !== '/login') {
+        router.navigate('/login');
+        return;
+      }
+    } else if (role === 'siswa') {
+      // 2. Student role is STRICTLY RESTRICTED to /portal-siswa only
+      if (path !== '/portal-siswa') {
+        showToast('Akses dibatasi. Siswa hanya dapat mengakses Portal Pembayaran mandiri.', 'warning');
+        router.navigate('/portal-siswa');
+        return;
+      }
+    } else if (role === 'admin') {
+      // 3. Admin already logged in cannot go to /login again
+      if (path === '/login') {
+        router.navigate('/');
+        return;
+      }
+    }
+
+    // Toggle login mode on app shell
+    const isLogin = path === '/login';
+    app.classList.toggle('login-mode', isLogin);
+
+    // Trigger sidebar update to re-evaluate role view
+    window.dispatchEvent(new CustomEvent('app:auth-changed'));
+
     const route = router.getCurrentRoute();
     if (route) {
       // Update active nav
@@ -96,8 +134,8 @@ export function initApp(): void {
       // Render page
       main.innerHTML = '';
 
-      // Show config banner if Google Spreadsheet API is not connected
-      if (!spreadsheetService.useApi) {
+      // Show config banner only on admin dashboard if Google Spreadsheet API is not connected
+      if (!isLogin && role === 'admin' && path === '/' && !spreadsheetService.useApi) {
         const banner = document.createElement('div');
         banner.className = 'config-banner animate-fade-in-down';
         banner.innerHTML = `

@@ -8,6 +8,17 @@ export type PaymentStatus = 'lunas' | 'belum' | 'sebagian';
 /** Metode pembayaran */
 export type PaymentMethod = 'tunai' | 'transfer' | 'qris' | 'va_bca' | 'va_bri' | 'va_mandiri' | 'gopay' | 'dana' | 'ovo';
 
+/** Role pengguna aplikasi */
+export type UserRole = 'admin' | 'siswa' | null;
+
+/** Sesi login pengguna */
+export interface AuthSession {
+  role: 'admin' | 'siswa';
+  username?: string;
+  student?: Student;
+  loginTime: number;
+}
+
 /** Channel pembayaran */
 export type PaymentChannel = 'online' | 'admin';
 

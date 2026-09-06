@@ -105,6 +105,8 @@ export const STORAGE_KEYS = {
   NOTIFICATIONS: 'spp_notifications',
   SCHOOL_INFO: 'spp_school_info',
   BILLABLE_ITEMS: 'spp_billable_items',
+  AUTH_SESSION: 'spp_auth_session',
+  ADMIN_PASSWORD: 'spp_admin_password',
 } as const;
 
 /** Warna status badge */
