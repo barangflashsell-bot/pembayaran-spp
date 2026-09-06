@@ -6,7 +6,7 @@ import { createElement, showToast, showModal, closeModal, showConfirm } from '..
 import { formatRupiah } from '../utils/formatter';
 import { spreadsheetService } from '../services/spreadsheet';
 import { APP_CONFIG, KELAS_LIST, MONTHS } from '../config/constants';
-import { exportStudentsToExcel, downloadStudentTemplateCsv, parseStudentCsv } from '../utils/export';
+import { exportStudentsToExcel, downloadStudentTemplateExcel, downloadStudentTemplateCsv, parseStudentCsv } from '../utils/export';
 import { schoolService } from '../services/schoolService';
 import { buildSppReminderWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
 import type { Student, Payment, MonthName } from '../types';
@@ -375,33 +375,58 @@ function openImportStudentsModal(page: HTMLElement): void {
 
   const modalEl = createElement('div', {
     innerHTML: `
-      <div style="display: flex; flex-direction: column; gap: var(--space-4); max-width: 660px;">
+      <div style="display: flex; flex-direction: column; gap: var(--space-4); max-width: 680px;">
         <!-- Step 1: Download Template -->
-        <div style="background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;">
-          <div>
-            <div style="font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); margin-bottom: 2px;">
-              📄 Template Excel / CSV Resmi
+        <div style="background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3);">
+            <div>
+              <div style="font-weight: var(--font-weight-bold); font-size: var(--font-size-sm); color: var(--color-text-primary); margin-bottom: 2px;">
+                📋 1. Unduh Format Template Resmi
+              </div>
+              <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+                Pilih format yang paling nyaman dibuka di Microsoft Excel komputer Anda:
+              </div>
             </div>
-            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
-              Format kolom: <strong>NIS, Nama Siswa, Kelas, Nama Orang Tua, No WA, Nominal SPP</strong>
+            <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm" id="btn-download-excel" style="font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; background: #16a34a; border-color: #16a34a;">
+                <span>📊</span> Unduh Excel (.xls)
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-download-csv" style="font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+                <span>📄</span> Unduh CSV (.csv)
+              </button>
             </div>
           </div>
-          <button class="btn btn-secondary btn-sm" id="btn-download-template" style="font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
-            <span>📥</span> Unduh Template CSV
-          </button>
+
+          <!-- Petunjuk Judul Kolom -->
+          <div style="background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-md); padding: var(--space-3); border: 1px solid var(--color-border-subtle); font-size: 11px;">
+            <div style="font-weight: 700; color: var(--color-primary-light); margin-bottom: 4px;">Urutan Judul Kolom yang Benar:</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; color: var(--color-text-secondary);">
+              <div>• <strong>NIS</strong> (Wajib: misal <code>2026011</code>)</div>
+              <div>• <strong>Nama Siswa</strong> (Wajib: Nama Lengkap)</div>
+              <div>• <strong>Kelas</strong> (Wajib: misal <code>VII-A</code>)</div>
+              <div>• <strong>Nama Orang Tua</strong> (Nama Wali)</div>
+              <div>• <strong>No WhatsApp</strong> (misal <code>081234567890</code>)</div>
+              <div>• <strong>Nominal SPP</strong> (Angka misal <code>250000</code>)</div>
+            </div>
+          </div>
         </div>
 
         <!-- Step 2: Upload Area / Dropzone -->
-        <div id="import-dropzone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6); text-align: center; cursor: pointer; transition: all 0.2s ease; background: rgba(255, 255, 255, 0.02);">
-          <input type="file" id="import-file-input" accept=".csv,.txt" style="display: none;">
-          <div style="font-size: 36px; margin-bottom: var(--space-2);">📂</div>
-          <div style="font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); margin-bottom: 4px;">
-            Klik untuk pilih file atau seret file CSV / Excel ke sini
+        <div>
+          <div style="font-weight: var(--font-weight-bold); font-size: var(--font-size-sm); margin-bottom: 6px;">
+            📂 2. Upload File yang Sudah Diisi
           </div>
-          <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
-            Mendukung file .csv (koma atau titik koma) dengan format standar Excel
+          <div id="import-dropzone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5); text-align: center; cursor: pointer; transition: all 0.2s ease; background: rgba(255, 255, 255, 0.02);">
+            <input type="file" id="import-file-input" accept=".xls,.xlsx,.csv,.txt" style="display: none;">
+            <div style="font-size: 32px; margin-bottom: var(--space-1);">📂</div>
+            <div style="font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); margin-bottom: 2px;">
+              Klik untuk pilih file atau seret file ke sini
+            </div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+              Mendukung file <strong>.xls (Excel)</strong>, <strong>.csv</strong>, atau <strong>.txt</strong>
+            </div>
+            <div id="import-file-name" style="margin-top: var(--space-2); font-weight: 700; color: var(--color-primary-light); font-size: var(--font-size-sm); display: none;"></div>
           </div>
-          <div id="import-file-name" style="margin-top: var(--space-3); font-weight: 700; color: var(--color-primary-light); font-size: var(--font-size-sm); display: none;"></div>
         </div>
 
         <!-- Step 3: Options & Preview Area -->
@@ -418,7 +443,7 @@ function openImportStudentsModal(page: HTMLElement): void {
           <div id="import-errors-box" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md); padding: var(--space-3); font-size: var(--font-size-xs); color: #fca5a5; max-height: 90px; overflow-y: auto;"></div>
 
           <!-- Preview Table -->
-          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); max-height: 200px; overflow: auto; background: var(--color-bg-dark);">
+          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); max-height: 180px; overflow: auto; background: var(--color-bg-dark);">
             <table class="data-table" style="font-size: 11px; margin: 0; width: 100%;">
               <thead>
                 <tr>
@@ -448,10 +473,16 @@ function openImportStudentsModal(page: HTMLElement): void {
 
   showModal('📥 Impor Data Siswa dari Excel / CSV', modalEl);
 
-  // Template download handler
-  modalEl.querySelector('#btn-download-template')?.addEventListener('click', () => {
+  // Excel template download handler
+  modalEl.querySelector('#btn-download-excel')?.addEventListener('click', () => {
+    downloadStudentTemplateExcel(school.nominalSppDefault, school.namaSekolah);
+    showToast('Template Excel (.xls) berhasil diunduh! Buka langsung di Microsoft Excel.', 'success');
+  });
+
+  // CSV template download handler
+  modalEl.querySelector('#btn-download-csv')?.addEventListener('click', () => {
     downloadStudentTemplateCsv(school.nominalSppDefault);
-    showToast('Template Data Siswa berhasil diunduh! Silakan buka di Microsoft Excel.', 'success');
+    showToast('Template CSV (.csv) berhasil diunduh!', 'success');
   });
 
   const fileInput = modalEl.querySelector('#import-file-input') as HTMLInputElement;
