@@ -14,7 +14,7 @@ import { renderBillableManager } from './components/billableManager';
 import { renderSchoolSettings } from './components/schoolSettings';
 import { notificationService } from './services/notification';
 import { schoolService } from './services/schoolService';
-import { APP_CONFIG } from './config/constants';
+import { spreadsheetService } from './services/spreadsheet';
 
 /** Initialize the application */
 export function initApp(): void {
@@ -96,17 +96,17 @@ export function initApp(): void {
       // Render page
       main.innerHTML = '';
 
-      // Show config banner if Apps Script URL is not set
-      if (!APP_CONFIG.appsScriptUrl) {
+      // Show config banner if Google Spreadsheet API is not connected
+      if (!spreadsheetService.useApi) {
         const banner = document.createElement('div');
         banner.className = 'config-banner animate-fade-in-down';
         banner.innerHTML = `
           <span class="config-banner-icon">⚠️</span>
           <div class="config-banner-text">
-            <div class="config-banner-title">Mode Demo (Offline Ready)</div>
+            <div class="config-banner-title">Mode Offline / Demo</div>
             <div class="config-banner-desc">
-              Data tersimpan otomatis di localStorage browser. Untuk menghubungkan ke Google Spreadsheet live,
-              cukup isi <code>appsScriptUrl</code> di <code>src/config/constants.ts</code>.
+              Data tersimpan di browser ini. Untuk menghubungkan ke <strong>Google Spreadsheet Asli (Real Live)</strong>, 
+              masukkan URL Web App di menu <a href="#/identitas-sekolah" style="color: var(--color-primary-light); text-decoration: underline; font-weight: 600;">Identitas Sekolah & Database Real</a>.
             </div>
           </div>
         `;

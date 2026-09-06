@@ -17,6 +17,7 @@ const DEFAULT_SCHOOL_INFO: SchoolIdentity = {
   namaBendahara: 'Siti Rahmawati, S.E.',
   nipBendahara: '19820415 200801 2 007',
   catatanKuitansi: 'Kuitansi ini adalah bukti pembayaran yang sah dan tersimpan secara elektronik di database sekolah.',
+  appsScriptUrl: APP_CONFIG.appsScriptUrl || '',
 };
 
 class SchoolService {
@@ -48,6 +49,9 @@ class SchoolService {
       APP_CONFIG.alamatSekolah = merged.alamatSekolah;
       APP_CONFIG.tahunAjaran = merged.tahunAjaran;
       APP_CONFIG.nominalSppDefault = merged.nominalSppDefault;
+      if (merged.appsScriptUrl !== undefined) {
+        APP_CONFIG.appsScriptUrl = merged.appsScriptUrl;
+      }
     } catch (e) {
       console.warn('Gagal menyimpan identitas sekolah ke storage:', e);
     }

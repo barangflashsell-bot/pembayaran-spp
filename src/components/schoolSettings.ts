@@ -1,9 +1,10 @@
 // ==========================================
-// School Settings Component — Edit Identitas Sekolah
+// School Settings Component — Edit Identitas Sekolah & Database Live
 // ==========================================
 
 import { createElement, showToast } from '../utils/dom';
 import { schoolService } from '../services/schoolService';
+import { spreadsheetService } from '../services/spreadsheet';
 import { formatRupiah } from '../utils/formatter';
 
 /** Render School Settings / Identity Edit Page */
@@ -13,9 +14,9 @@ export function renderSchoolSettings(): HTMLElement {
 
   container.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">⚙️ Identitas & Profil Sekolah</h1>
+      <h1 class="page-title">⚙️ Identitas Sekolah & Database Real</h1>
       <p class="page-description">
-        Ubah nama sekolah, alamat, kontak, serta nama pejabat bendahara untuk kuitansi resmi sekolah.
+        Ubah nama sekolah, alamat, kontak, nama pejabat kuitansi, serta hubungkan ke Google Spreadsheet asli secara real-time.
       </p>
     </div>
 
@@ -60,6 +61,7 @@ export function renderSchoolSettings(): HTMLElement {
             </div>
           </div>
 
+          <!-- Pejabat Penandatangan Kuitansi -->
           <div style="border-top: 1px solid var(--color-border); margin: var(--space-4) 0; padding-top: var(--space-4);">
             <h4 style="font-size: var(--font-size-sm); font-weight: 600; margin-bottom: var(--space-3); color: var(--color-primary-light);">
               ✍️ Pejabat Penandatangan Kuitansi Resmi
@@ -93,9 +95,31 @@ export function renderSchoolSettings(): HTMLElement {
             </div>
           </div>
 
-          <div style="padding-top: var(--space-2);">
+          <!-- Integrasi Google Spreadsheet Asli -->
+          <div style="border-top: 1px solid var(--color-border); margin: var(--space-4) 0; padding-top: var(--space-4); background: rgba(16, 185, 129, 0.05); padding: var(--space-4); border-radius: var(--radius-xl); border: 1px dashed rgba(16, 185, 129, 0.3);">
+            <h4 style="font-size: var(--font-size-sm); font-weight: 700; margin-bottom: var(--space-1); color: var(--color-success);">
+              📊 Database Google Spreadsheet Asli (Real / Live)
+            </h4>
+            <p class="text-xs text-muted mb-3">
+              Masukkan URL Web App Google Apps Script Anda (berakhiran <code>/exec</code>) agar data siswa, pos tagihan, dan setoran pembayaran online tersimpan langsung ke Google Spreadsheet Anda secara nyata.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">URL Web App Google Apps Script</label>
+              <input type="url" class="form-input" id="set-apps-script-url" value="${current.appsScriptUrl || ''}" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+
+            <div style="display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-test-sheet">
+                🔌 Tes Koneksi Database
+              </button>
+              <span id="test-sheet-status" class="text-xs"></span>
+            </div>
+          </div>
+
+          <div style="padding-top: var(--space-4);">
             <button type="submit" class="btn btn-success btn-lg" style="width: 100%;">
-              💾 Simpan Perubahan Identitas Sekolah
+              💾 Simpan Perubahan Identitas & Database
             </button>
           </div>
         </form>
@@ -130,6 +154,9 @@ export function renderSchoolSettings(): HTMLElement {
   const inputNipKepala = container.querySelector('#set-nip-kepala') as HTMLInputElement;
   const inputBendahara = container.querySelector('#set-bendahara') as HTMLInputElement;
   const inputCatatan = container.querySelector('#set-catatan-kuitansi') as HTMLTextAreaElement;
+  const inputAppsScript = container.querySelector('#set-apps-script-url') as HTMLInputElement;
+  const btnTestSheet = container.querySelector('#btn-test-sheet') as HTMLButtonElement;
+  const statusTest = container.querySelector('#test-sheet-status') as HTMLElement;
   const previewBox = container.querySelector('#live-receipt-preview') as HTMLElement;
 
   function updateLivePreview() {
@@ -191,6 +218,33 @@ export function renderSchoolSettings(): HTMLElement {
 
   updateLivePreview();
 
+  // Test Database Connection
+  btnTestSheet.addEventListener('click', async () => {
+    const url = inputAppsScript.value.trim();
+    if (!url) {
+      statusTest.textContent = '⚠️ Masukkan URL Apps Script terlebih dahulu.';
+      statusTest.className = 'text-xs text-warning';
+      return;
+    }
+
+    statusTest.textContent = '🔄 Sedang menguji koneksi...';
+    statusTest.className = 'text-xs text-muted';
+    btnTestSheet.disabled = true;
+
+    const result = await spreadsheetService.testConnection(url);
+    btnTestSheet.disabled = false;
+
+    if (result.success) {
+      statusTest.textContent = `✅ ${result.message}`;
+      statusTest.className = 'text-xs text-success';
+      showToast('Koneksi Google Spreadsheet Berhasil!', 'success');
+    } else {
+      statusTest.textContent = `❌ ${result.message}`;
+      statusTest.className = 'text-xs text-danger';
+      showToast(result.message, 'error', 6000);
+    }
+  });
+
   // Form submit
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -206,12 +260,13 @@ export function renderSchoolSettings(): HTMLElement {
       nipKepalaSekolah: inputNipKepala.value.trim(),
       namaBendahara: inputBendahara.value.trim(),
       catatanKuitansi: inputCatatan.value.trim(),
+      appsScriptUrl: inputAppsScript.value.trim(),
     });
 
     // Update document title
     document.title = `Identitas Sekolah — ${updated.namaSekolah}`;
 
-    showToast(`Identitas "${updated.namaSekolah}" berhasil disimpan!`, 'success');
+    showToast(`Data Identitas & Database "${updated.namaSekolah}" berhasil disimpan!`, 'success');
   });
 
   return container;

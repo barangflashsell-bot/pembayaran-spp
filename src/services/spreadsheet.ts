@@ -6,19 +6,47 @@ import type { Student, Payment, ApiResponse, DashboardStats } from '../types';
 import { APP_CONFIG, STORAGE_KEYS } from '../config/constants';
 import { formatRupiah } from '../utils/formatter';
 
+import { schoolService } from './schoolService';
+
 /**
  * SpreadsheetService handles data persistence.
  * - If Apps Script URL is configured, syncs with Google Spreadsheet.
  * - Falls back to localStorage for offline/demo usage.
  */
 class SpreadsheetService {
-  private get useApi(): boolean {
-    return !!APP_CONFIG.appsScriptUrl;
+  private get apiUrl(): string {
+    const school = schoolService.getSchoolInfo();
+    return school.appsScriptUrl || APP_CONFIG.appsScriptUrl || '';
+  }
+
+  get useApi(): boolean {
+    return !!this.apiUrl;
   }
 
   // ==========================================
   // API Communication
   // ==========================================
+
+  /** Test connection to Google Apps Script */
+  async testConnection(targetUrl?: string): Promise<{ success: boolean; message: string }> {
+    const urlStr = targetUrl || this.apiUrl;
+    if (!urlStr) {
+      return { success: false, message: 'URL Google Apps Script belum diisi.' };
+    }
+
+    try {
+      const url = new URL(urlStr);
+      url.searchParams.set('action', 'getStudents');
+      const res = await fetch(url.toString());
+      const json = await res.json() as ApiResponse<unknown>;
+      if (json && json.success !== undefined) {
+        return { success: true, message: 'Koneksi ke Google Spreadsheet BERHASIL & AKTIF!' };
+      }
+      return { success: false, message: 'Respons API tidak valid. Pastikan Who has access diatur Anyone.' };
+    } catch (err) {
+      return { success: false, message: 'Gagal menghubungi URL: ' + String(err) };
+    }
+  }
 
   /** Send GET request to Apps Script */
   private async apiGet<T>(action: string, params?: Record<string, string>): Promise<ApiResponse<T>> {
@@ -26,7 +54,7 @@ class SpreadsheetService {
       throw new Error('API URL not configured');
     }
 
-    const url = new URL(APP_CONFIG.appsScriptUrl);
+    const url = new URL(this.apiUrl);
     url.searchParams.set('action', action);
     if (params) {
       Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
@@ -48,7 +76,7 @@ class SpreadsheetService {
     }
 
     try {
-      const res = await fetch(APP_CONFIG.appsScriptUrl, {
+      const res = await fetch(this.apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action, ...data }),

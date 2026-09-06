@@ -49,6 +49,7 @@ export interface SchoolIdentity {
   namaBendahara: string;
   nipBendahara?: string;
   catatanKuitansi: string;
+  appsScriptUrl?: string;
 }
 
 /** Nama bulan dalam Bahasa Indonesia */
