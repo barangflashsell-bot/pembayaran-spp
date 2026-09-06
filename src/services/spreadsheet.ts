@@ -135,6 +135,50 @@ class SpreadsheetService {
     return true;
   }
 
+  /** Bulk import students from Excel / CSV */
+  async importStudents(
+    newStudents: Student[],
+    updateExisting = true
+  ): Promise<{ added: number; updated: number; skipped: number }> {
+    const currentStudents = await this.getStudents();
+    const studentMap = new Map<string, Student>();
+    currentStudents.forEach((s) => studentMap.set(s.nis.trim(), s));
+
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const st of newStudents) {
+      const nis = st.nis.trim();
+      if (!nis) continue;
+
+      if (studentMap.has(nis)) {
+        if (updateExisting) {
+          studentMap.set(nis, { ...studentMap.get(nis)!, ...st });
+          updated++;
+        } else {
+          skipped++;
+        }
+      } else {
+        studentMap.set(nis, st);
+        added++;
+      }
+    }
+
+    const merged = Array.from(studentMap.values());
+    this.setLocal(STORAGE_KEYS.STUDENTS, merged);
+
+    if (this.useApi) {
+      try {
+        await this.apiPost('bulkImportStudents', { students: merged });
+      } catch (e) {
+        console.warn('API sync bulkImportStudents failed, saved locally:', e);
+      }
+    }
+
+    return { added, updated, skipped };
+  }
+
   /** Update student data */
   async updateStudent(nis: string, updated: Partial<Student>): Promise<boolean> {
     if (this.useApi) {

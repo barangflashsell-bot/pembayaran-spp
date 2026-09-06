@@ -6,7 +6,7 @@ import { createElement, showToast, showModal, closeModal, showConfirm } from '..
 import { formatRupiah } from '../utils/formatter';
 import { spreadsheetService } from '../services/spreadsheet';
 import { APP_CONFIG, KELAS_LIST, MONTHS } from '../config/constants';
-import { exportStudentsToExcel } from '../utils/export';
+import { exportStudentsToExcel, downloadStudentTemplateCsv, parseStudentCsv } from '../utils/export';
 import { schoolService } from '../services/schoolService';
 import { buildSppReminderWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
 import type { Student, Payment, MonthName } from '../types';
@@ -23,9 +23,14 @@ export function renderStudents(): HTMLElement {
         <h1 class="page-title">Data Siswa</h1>
         <p class="page-description">Kelola data siswa yang terdaftar & status kontak wali murid</p>
       </div>
-      <button class="btn btn-secondary" id="btn-export-students" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
-        <span>📊</span> Export Excel / CSV
-      </button>
+      <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+        <button class="btn btn-secondary" id="btn-import-students" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+          <span>📥</span> Import Excel / CSV
+        </button>
+        <button class="btn btn-secondary" id="btn-export-students" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+          <span>📊</span> Export Excel / CSV
+        </button>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -79,6 +84,9 @@ export function renderStudents(): HTMLElement {
     exportStudentsToExcel(currentDisplayedStudents, school.namaSekolah);
     showToast(`Berhasil mengekspor ${currentDisplayedStudents.length} siswa ke file Excel/CSV!`, 'success');
   });
+
+  // Import Excel / CSV handler
+  page.querySelector('#btn-import-students')?.addEventListener('click', () => openImportStudentsModal(page));
 
   searchInput.addEventListener('input', () => loadStudentTable(page, searchInput.value, filterKelas.value));
   filterKelas.addEventListener('change', () => loadStudentTable(page, searchInput.value, filterKelas.value));
@@ -359,3 +367,220 @@ function openStudentForm(page: HTMLElement, student?: Student): void {
     }
   });
 }
+
+/** Open Excel/CSV Import Dialog for Students */
+function openImportStudentsModal(page: HTMLElement): void {
+  const school = schoolService.getSchoolInfo();
+  let parsedStudentsList: Student[] = [];
+
+  const modalEl = createElement('div', {
+    innerHTML: `
+      <div style="display: flex; flex-direction: column; gap: var(--space-4); max-width: 660px;">
+        <!-- Step 1: Download Template -->
+        <div style="background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;">
+          <div>
+            <div style="font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); margin-bottom: 2px;">
+              📄 Template Excel / CSV Resmi
+            </div>
+            <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+              Format kolom: <strong>NIS, Nama Siswa, Kelas, Nama Orang Tua, No WA, Nominal SPP</strong>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-download-template" style="font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+            <span>📥</span> Unduh Template CSV
+          </button>
+        </div>
+
+        <!-- Step 2: Upload Area / Dropzone -->
+        <div id="import-dropzone" style="border: 2px dashed var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6); text-align: center; cursor: pointer; transition: all 0.2s ease; background: rgba(255, 255, 255, 0.02);">
+          <input type="file" id="import-file-input" accept=".csv,.txt" style="display: none;">
+          <div style="font-size: 36px; margin-bottom: var(--space-2);">📂</div>
+          <div style="font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); margin-bottom: 4px;">
+            Klik untuk pilih file atau seret file CSV / Excel ke sini
+          </div>
+          <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
+            Mendukung file .csv (koma atau titik koma) dengan format standar Excel
+          </div>
+          <div id="import-file-name" style="margin-top: var(--space-3); font-weight: 700; color: var(--color-primary-light); font-size: var(--font-size-sm); display: none;"></div>
+        </div>
+
+        <!-- Step 3: Options & Preview Area -->
+        <div id="import-preview-section" style="display: none; flex-direction: column; gap: var(--space-3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-2);">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); cursor: pointer; user-select: none;">
+              <input type="checkbox" id="import-update-existing" checked style="accent-color: var(--color-primary); cursor: pointer;">
+              <span>Perbarui data jika NIS sudah terdaftar di sistem</span>
+            </label>
+            <div id="import-status-badge" class="badge badge-success text-xs"></div>
+          </div>
+
+          <!-- Error Alert Box -->
+          <div id="import-errors-box" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md); padding: var(--space-3); font-size: var(--font-size-xs); color: #fca5a5; max-height: 90px; overflow-y: auto;"></div>
+
+          <!-- Preview Table -->
+          <div style="border: 1px solid var(--color-border); border-radius: var(--radius-md); max-height: 200px; overflow: auto; background: var(--color-bg-dark);">
+            <table class="data-table" style="font-size: 11px; margin: 0; width: 100%;">
+              <thead>
+                <tr>
+                  <th style="padding: 6px 8px;">NIS</th>
+                  <th style="padding: 6px 8px;">Nama Siswa</th>
+                  <th style="padding: 6px 8px;">Kelas</th>
+                  <th style="padding: 6px 8px;">Nama Wali</th>
+                  <th style="padding: 6px 8px;">No. WhatsApp</th>
+                  <th style="padding: 6px 8px;">SPP (Rp)</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+          <button class="btn btn-secondary" id="btn-cancel-import">Batal</button>
+          <button class="btn btn-primary" id="btn-confirm-import" disabled style="font-weight: 600;">
+            🚀 Mulai Impor Data Siswa
+          </button>
+        </div>
+      </div>
+    `
+  });
+
+  showModal('📥 Impor Data Siswa dari Excel / CSV', modalEl);
+
+  // Template download handler
+  modalEl.querySelector('#btn-download-template')?.addEventListener('click', () => {
+    downloadStudentTemplateCsv(school.nominalSppDefault);
+    showToast('Template Data Siswa berhasil diunduh! Silakan buka di Microsoft Excel.', 'success');
+  });
+
+  const fileInput = modalEl.querySelector('#import-file-input') as HTMLInputElement;
+  const dropzone = modalEl.querySelector('#import-dropzone') as HTMLElement;
+  const fileNameEl = modalEl.querySelector('#import-file-name') as HTMLElement;
+  const previewSection = modalEl.querySelector('#import-preview-section') as HTMLElement;
+  const previewTbody = modalEl.querySelector('#import-preview-tbody') as HTMLElement;
+  const statusBadge = modalEl.querySelector('#import-status-badge') as HTMLElement;
+  const errorsBox = modalEl.querySelector('#import-errors-box') as HTMLElement;
+  const confirmBtn = modalEl.querySelector('#btn-confirm-import') as HTMLButtonElement;
+  const cancelBtn = modalEl.querySelector('#btn-cancel-import') as HTMLButtonElement;
+  const updateExistingCheckbox = modalEl.querySelector('#import-update-existing') as HTMLInputElement;
+
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Trigger file select on dropzone click
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  // Drag & drop handlers
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.style.borderColor = 'var(--color-primary)';
+    dropzone.style.background = 'rgba(99, 102, 241, 0.08)';
+  });
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.style.borderColor = 'var(--color-border)';
+    dropzone.style.background = 'rgba(255, 255, 255, 0.02)';
+  });
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.style.borderColor = 'var(--color-border)';
+    dropzone.style.background = 'rgba(255, 255, 255, 0.02)';
+    if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
+      handleFileSelected(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files && fileInput.files[0]) {
+      handleFileSelected(fileInput.files[0]);
+    }
+  });
+
+  function handleFileSelected(file: File): void {
+    fileNameEl.style.display = 'block';
+    fileNameEl.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) {
+        showToast('File tidak memiliki konten', 'warning');
+        return;
+      }
+
+      const parseResult = parseStudentCsv(content, school.nominalSppDefault);
+      parsedStudentsList = parseResult.valid;
+
+      // Update UI
+      previewSection.style.display = 'flex';
+
+      if (parseResult.errors.length > 0) {
+        errorsBox.style.display = 'block';
+        errorsBox.innerHTML = `<strong>Peringatan / Catatan (${parseResult.errors.length}):</strong><br>` + 
+          parseResult.errors.map((err) => `• ${err}`).join('<br>');
+      } else {
+        errorsBox.style.display = 'none';
+      }
+
+      if (parsedStudentsList.length === 0) {
+        statusBadge.className = 'badge badge-danger text-xs';
+        statusBadge.textContent = '0 Data Valid Ditemukan';
+        confirmBtn.disabled = true;
+        previewTbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding: 12px;">Format tidak dikenali. Silakan periksa atau gunakan template resmi.</td></tr>`;
+        return;
+      }
+
+      statusBadge.className = 'badge badge-success text-xs';
+      statusBadge.textContent = `✅ ${parsedStudentsList.length} Siswa Siap Diimpor`;
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = `🚀 Impor ${parsedStudentsList.length} Data Siswa`;
+
+      // Render preview rows (show first 15 rows)
+      const previewRows = parsedStudentsList.slice(0, 15);
+      previewTbody.innerHTML = previewRows
+        .map(
+          (s) => `
+          <tr>
+            <td style="padding: 5px 8px;"><code>${s.nis}</code></td>
+            <td style="padding: 5px 8px; font-weight: 600;">${s.nama}</td>
+            <td style="padding: 5px 8px;"><span class="badge badge-info text-xs">${s.kelas}</span></td>
+            <td style="padding: 5px 8px;">${s.namaOrangTua}</td>
+            <td style="padding: 5px 8px;">${s.noHp || '-'}</td>
+            <td style="padding: 5px 8px;">${formatRupiah(s.nominalSpp)}</td>
+          </tr>
+        `
+        )
+        .join('');
+
+      if (parsedStudentsList.length > 15) {
+        previewTbody.innerHTML += `
+          <tr>
+            <td colspan="6" class="text-center text-muted" style="padding: 6px 8px; font-style: italic;">
+              ...dan ${parsedStudentsList.length - 15} siswa lainnya
+            </td>
+          </tr>
+        `;
+      }
+    };
+
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  // Import button handler
+  confirmBtn.addEventListener('click', async () => {
+    if (parsedStudentsList.length === 0) return;
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Menyimpan ke database...';
+
+    const updateExisting = updateExistingCheckbox.checked;
+    const result = await spreadsheetService.importStudents(parsedStudentsList, updateExisting);
+
+    showToast(
+      `Berhasil mengimpor data siswa: ${result.added} siswa baru ditambahkan, ${result.updated} diperbarui!`,
+      'success'
+    );
+    closeModal();
+    loadStudentTable(page);
+  });
+}
+
