@@ -5,17 +5,27 @@
 import { createElement, showToast, showModal, closeModal, showConfirm } from '../utils/dom';
 import { formatRupiah } from '../utils/formatter';
 import { spreadsheetService } from '../services/spreadsheet';
-import { APP_CONFIG, KELAS_LIST } from '../config/constants';
-import type { Student } from '../types';
+import { APP_CONFIG, KELAS_LIST, MONTHS } from '../config/constants';
+import { exportStudentsToExcel } from '../utils/export';
+import { schoolService } from '../services/schoolService';
+import { buildSppReminderWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
+import type { Student, Payment, MonthName } from '../types';
+
+let currentDisplayedStudents: Student[] = [];
 
 /** Render students page */
 export function renderStudents(): HTMLElement {
   const page = createElement('div', { className: 'page-enter' });
 
   page.innerHTML = `
-    <div class="page-header">
-      <h1 class="page-title">Data Siswa</h1>
-      <p class="page-description">Kelola data siswa yang terdaftar</p>
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--space-4);">
+      <div>
+        <h1 class="page-title">Data Siswa</h1>
+        <p class="page-description">Kelola data siswa yang terdaftar & status kontak wali murid</p>
+      </div>
+      <button class="btn btn-secondary" id="btn-export-students" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+        <span>📊</span> Export Excel / CSV
+      </button>
     </div>
 
     <div class="toolbar">
@@ -59,6 +69,17 @@ export function renderStudents(): HTMLElement {
   const filterKelas = page.querySelector('#student-filter-kelas') as HTMLSelectElement;
   const addBtn = page.querySelector('#btn-add-student') as HTMLButtonElement;
 
+  // Export Excel handler
+  page.querySelector('#btn-export-students')?.addEventListener('click', () => {
+    if (currentDisplayedStudents.length === 0) {
+      showToast('Tidak ada data siswa untuk diexport', 'warning');
+      return;
+    }
+    const school = schoolService.getSchoolInfo();
+    exportStudentsToExcel(currentDisplayedStudents, school.namaSekolah);
+    showToast(`Berhasil mengekspor ${currentDisplayedStudents.length} siswa ke file Excel/CSV!`, 'success');
+  });
+
   searchInput.addEventListener('input', () => loadStudentTable(page, searchInput.value, filterKelas.value));
   filterKelas.addEventListener('change', () => loadStudentTable(page, searchInput.value, filterKelas.value));
   addBtn.addEventListener('click', () => openStudentForm(page));
@@ -87,6 +108,7 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
     if (kelas) {
       students = students.filter((s) => s.kelas === kelas);
     }
+    currentDisplayedStudents = students;
 
     if (students.length === 0) {
       tbody.innerHTML = `
@@ -113,6 +135,7 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
         <td style="font-weight: var(--font-weight-semibold);">${formatRupiah(s.nominalSpp)}</td>
         <td>
           <div style="display: flex; gap: var(--space-2);">
+            <button class="btn btn-ghost btn-sm btn-remind-wa" data-nis="${s.nis}" title="Kirim Pengingat Tagihan SPP via WhatsApp" style="color: #25d366;">📲</button>
             <button class="btn btn-ghost btn-sm btn-edit-student" data-nis="${s.nis}" title="Edit">✏️</button>
             <button class="btn btn-ghost btn-sm btn-delete-student" data-nis="${s.nis}" title="Hapus">🗑️</button>
           </div>
@@ -121,6 +144,14 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
     `).join('');
 
     // Bind row action buttons
+    tbody.querySelectorAll('.btn-remind-wa').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nis = btn.getAttribute('data-nis')!;
+        const student = students.find((s) => s.nis === nis);
+        if (student) openSppReminderDialog(student);
+      });
+    });
+
     tbody.querySelectorAll('.btn-edit-student').forEach((btn) => {
       btn.addEventListener('click', () => {
         const nis = btn.getAttribute('data-nis')!;
@@ -153,6 +184,76 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
       <tr><td colspan="7" class="text-center text-danger" style="padding: var(--space-8);">Error memuat data siswa</td></tr>
     `;
   }
+}
+
+/** Show WhatsApp SPP reminder dialog */
+async function openSppReminderDialog(student: Student): Promise<void> {
+  const payments = await spreadsheetService.getStudentPayments(student.nis);
+  const currentYear = new Date().getFullYear();
+  const currentMonthIdx = new Date().getMonth();
+  
+  const elapsedMonths = MONTHS.slice(0, currentMonthIdx + 1);
+  const paidMonthsThisYear = payments
+    .filter((p: Payment) => p.tahun === currentYear && p.status === 'lunas')
+    .map((p: Payment) => p.bulan);
+    
+  const unpaidMonths = elapsedMonths.filter((m) => !paidMonthsThisYear.includes(m as MonthName));
+  const totalTunggakan = unpaidMonths.length * (student.nominalSpp || 150000);
+
+  const modalEl = createElement('div', {
+    innerHTML: `
+      <div style="margin-bottom: var(--space-4);">
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: var(--space-3);">
+          Kirim pesan pemberitahuan tagihan SPP langsung ke WhatsApp orang tua/wali siswa secara resmi dan otomatis.
+        </p>
+
+        <div style="background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-4); font-size: var(--font-size-sm);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: var(--color-text-muted);">Nama Siswa:</span>
+            <strong>${student.nama} (${student.nis} - ${student.kelas})</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: var(--color-text-muted);">Nama Wali:</span>
+            <strong>${student.namaOrangTua || '-'}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: var(--color-text-muted);">No. WhatsApp:</span>
+            <strong>${student.noHp || '(Belum ada nomor)'}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: var(--color-text-muted);">Status Tagihan:</span>
+            <span style="color: ${unpaidMonths.length > 0 ? 'var(--color-danger)' : 'var(--color-success)'}; font-weight: 700;">
+              ${unpaidMonths.length > 0 ? `${unpaidMonths.join(', ')} (${formatRupiah(totalTunggakan)})` : 'Semua Lunas'}
+            </span>
+          </div>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label">Catatan Tambahan (Opsional)</label>
+          <input type="text" class="form-input" id="wa-reminder-note" placeholder="Contoh: Pembayaran ditunggu sebelum tanggal 10">
+        </div>
+
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end;">
+          <button class="btn btn-secondary" id="btn-cancel-wa-reminder">Batal</button>
+          <button class="btn btn-primary" id="btn-send-wa-reminder" style="background: #25d366; border-color: #25d366; color: white; font-weight: 600;">
+            📲 Buka WhatsApp
+          </button>
+        </div>
+      </div>
+    `
+  });
+
+  showModal(`Pengingat SPP - ${student.nama}`, modalEl);
+
+  modalEl.querySelector('#btn-cancel-wa-reminder')?.addEventListener('click', closeModal);
+  modalEl.querySelector('#btn-send-wa-reminder')?.addEventListener('click', () => {
+    const note = (modalEl.querySelector('#wa-reminder-note') as HTMLInputElement).value;
+    const monthsToSend = unpaidMonths.length > 0 ? unpaidMonths : ['Bulan Berjalan'];
+    const nominalToSend = unpaidMonths.length > 0 ? totalTunggakan : student.nominalSpp;
+    const msg = buildSppReminderWhatsAppMessage(student, monthsToSend, nominalToSend, note);
+    openWhatsAppChat(student.noHp, msg);
+    closeModal();
+  });
 }
 
 /** Open student form (add/edit) */

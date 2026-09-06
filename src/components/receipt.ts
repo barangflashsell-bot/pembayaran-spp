@@ -6,6 +6,8 @@ import { showModal } from '../utils/dom';
 import { formatRupiah, formatDate, getMethodLabel } from '../utils/formatter';
 import { schoolService } from '../services/schoolService';
 import type { Payment } from '../types';
+import { spreadsheetService } from '../services/spreadsheet';
+import { buildReceiptWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
 
 /** Render and show receipt modal, then print */
 export function renderReceipt(payment: Payment): void {
@@ -16,8 +18,11 @@ export function renderReceipt(payment: Payment): void {
     <div style="margin-bottom: var(--space-4);">
       ${receiptHTML}
     </div>
-    <div style="display: flex; gap: var(--space-3); justify-content: center; padding-top: var(--space-4); border-top: 1px solid var(--color-border);">
+    <div style="display: flex; gap: var(--space-3); justify-content: center; padding-top: var(--space-4); border-top: 1px solid var(--color-border); flex-wrap: wrap;">
       <button class="btn btn-primary btn-print-action btn-lg" id="btn-print-receipt">🖨️ Cetak Kuitansi Resmi</button>
+      <button class="btn btn-secondary btn-lg" id="btn-wa-receipt" style="background: #25d366; color: white; border: none; font-weight: 600;">
+        📲 Kirim via WhatsApp
+      </button>
     </div>
   `;
 
@@ -26,6 +31,21 @@ export function renderReceipt(payment: Payment): void {
   // Print handler
   container.querySelector('#btn-print-receipt')?.addEventListener('click', () => {
     printReceipt(payment);
+  });
+
+  // WhatsApp handler
+  container.querySelector('#btn-wa-receipt')?.addEventListener('click', async () => {
+    try {
+      const students = await spreadsheetService.getStudents();
+      const student = students.find((s) => s.nis === payment.nis);
+      const msg = buildReceiptWhatsAppMessage(payment, student);
+      const phone = student?.noHp || '';
+      openWhatsAppChat(phone, msg);
+    } catch (err) {
+      console.error(err);
+      const msg = buildReceiptWhatsAppMessage(payment);
+      openWhatsAppChat('', msg);
+    }
   });
 }
 

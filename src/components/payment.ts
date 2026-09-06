@@ -7,6 +7,7 @@ import { formatRupiah, generateTransactionId, toISODate, getCurrentYear } from '
 import { spreadsheetService } from '../services/spreadsheet';
 import { notificationService } from '../services/notification';
 import { MONTHS, KELAS_LIST, PAYMENT_METHODS } from '../config/constants';
+import { renderReceipt } from './receipt';
 import type { Payment, PaymentMethod, MonthName, Student } from '../types';
 
 /** Render payment page */
@@ -306,6 +307,9 @@ async function handlePaymentSubmit(e: Event, page: HTMLElement): Promise<void> {
 
     // Refresh payment grid
     await onStudentSelect(page, nis);
+
+    // Show receipt popup with Print & WhatsApp options
+    renderReceipt(payment);
   } else {
     showToast(`${student.nama} sudah membayar SPP bulan ${bulan} ${tahun}`, 'warning');
   }

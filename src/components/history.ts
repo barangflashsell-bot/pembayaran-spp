@@ -7,7 +7,12 @@ import { formatRupiah, formatDateShort, formatDate, getStatusLabel, getStatusBad
 import { spreadsheetService } from '../services/spreadsheet';
 import { MONTHS, KELAS_LIST } from '../config/constants';
 import { renderReceipt } from './receipt';
+import { exportPaymentsToExcel } from '../utils/export';
+import { schoolService } from '../services/schoolService';
+import { buildReceiptWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
 import type { Payment, HistoryFilter, MonthName, PaymentStatus, PaymentChannel } from '../types';
+
+let currentDisplayedPayments: Payment[] = [];
 
 /** Render history page */
 export function renderHistory(): HTMLElement {
@@ -15,9 +20,14 @@ export function renderHistory(): HTMLElement {
   const currentYear = new Date().getFullYear();
 
   page.innerHTML = `
-    <div class="page-header">
-      <h1 class="page-title">Riwayat Pembayaran</h1>
-      <p class="page-description">Lihat dan kelola catatan pembayaran SPP & tagihan sekolah (Online & Kasir)</p>
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--space-4);">
+      <div>
+        <h1 class="page-title">Riwayat Pembayaran</h1>
+        <p class="page-description">Lihat dan kelola catatan pembayaran SPP & tagihan sekolah (Online & Kasir)</p>
+      </div>
+      <button class="btn btn-secondary" id="btn-export-history" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+        <span>📊</span> Export Excel / CSV
+      </button>
     </div>
 
     <div class="toolbar">
@@ -96,6 +106,17 @@ export function renderHistory(): HTMLElement {
   filterBulan.addEventListener('change', applyFilters);
   filterTahun.addEventListener('change', applyFilters);
 
+  // Export Excel handler
+  page.querySelector('#btn-export-history')?.addEventListener('click', () => {
+    if (currentDisplayedPayments.length === 0) {
+      showToast('Tidak ada data transaksi untuk diexport', 'warning');
+      return;
+    }
+    const school = schoolService.getSchoolInfo();
+    exportPaymentsToExcel(currentDisplayedPayments, school.namaSekolah);
+    showToast(`Berhasil mengekspor ${currentDisplayedPayments.length} transaksi ke file Excel/CSV!`, 'success');
+  });
+
   // Initial load
   applyFilters();
 
@@ -139,6 +160,7 @@ async function loadHistoryTable(page: HTMLElement, filter: HistoryFilter): Promi
 
     // Sort by date descending
     payments.sort((a, b) => new Date(b.tanggalBayar).getTime() - new Date(a.tanggalBayar).getTime());
+    currentDisplayedPayments = payments;
 
     // Summary
     const totalNominal = payments.reduce((sum, p) => sum + p.nominal, 0);
@@ -210,6 +232,7 @@ async function loadHistoryTable(page: HTMLElement, filter: HistoryFilter): Promi
           <td>
             <div style="display: flex; gap: var(--space-2);">
               <button class="btn btn-ghost btn-sm btn-print" data-id="${p.idTransaksi}" title="Cetak Kwitansi">🖨️</button>
+              <button class="btn btn-ghost btn-sm btn-wa-send" data-id="${p.idTransaksi}" title="Kirim Kuitansi WhatsApp" style="color: #25d366;">📲</button>
               <button class="btn btn-ghost btn-sm btn-delete-payment" data-id="${p.idTransaksi}" title="Hapus">🗑️</button>
             </div>
           </td>
@@ -227,7 +250,7 @@ async function loadHistoryTable(page: HTMLElement, filter: HistoryFilter): Promi
   }
 }
 
-/** Bind print, detail, and delete actions */
+/** Bind print, detail, WhatsApp, and delete actions */
 function bindHistoryActions(page: HTMLElement, payments: Payment[], filter: HistoryFilter): void {
   // Detail "Dia Bayar Apa Saja" button
   page.querySelectorAll('.btn-view-items').forEach((btn) => {
@@ -247,6 +270,26 @@ function bindHistoryActions(page: HTMLElement, payments: Payment[], filter: Hist
       const payment = payments.find((p) => p.idTransaksi === id);
       if (payment) {
         renderReceipt(payment);
+      }
+    });
+  });
+
+  // WhatsApp buttons
+  page.querySelectorAll('.btn-wa-send').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id')!;
+      const payment = payments.find((p) => p.idTransaksi === id);
+      if (!payment) return;
+
+      try {
+        const students = await spreadsheetService.getStudents();
+        const student = students.find((s) => s.nis === payment.nis);
+        const msg = buildReceiptWhatsAppMessage(payment, student);
+        openWhatsAppChat(student?.noHp || '', msg);
+      } catch (err) {
+        console.error(err);
+        const msg = buildReceiptWhatsAppMessage(payment);
+        openWhatsAppChat('', msg);
       }
     });
   });
