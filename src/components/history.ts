@@ -5,7 +5,7 @@
 import { createElement, showToast, showConfirm, showModal } from '../utils/dom';
 import { formatRupiah, formatDateShort, formatDate, getStatusLabel, getStatusBadgeClass, getMethodLabel } from '../utils/formatter';
 import { spreadsheetService } from '../services/spreadsheet';
-import { MONTHS, KELAS_LIST } from '../config/constants';
+import { MONTHS } from '../config/constants';
 import { renderReceipt } from './receipt';
 import { exportPaymentsToExcel } from '../utils/export';
 import { schoolService } from '../services/schoolService';
@@ -43,7 +43,6 @@ export function renderHistory(): HTMLElement {
         </select>
         <select class="form-select" id="history-kelas">
           <option value="">Semua Kelas</option>
-          ${KELAS_LIST.map((k) => `<option value="${k}">${k}</option>`).join('')}
         </select>
         <select class="form-select" id="history-bulan">
           <option value="">Semua Bulan</option>
@@ -129,7 +128,20 @@ async function loadHistoryTable(page: HTMLElement, filter: HistoryFilter): Promi
   const summaryEl = page.querySelector('#history-summary') as HTMLElement;
 
   try {
-    let payments = await spreadsheetService.getPayments();
+    const allPayments = await spreadsheetService.getPayments();
+
+    // Dynamically update class options from payments
+    const kelasSelect = page.querySelector('#history-kelas') as HTMLSelectElement;
+    if (kelasSelect) {
+      const selectedVal = filter.kelas || kelasSelect.value;
+      const uniqueClasses = Array.from(new Set(allPayments.map((p) => p.kelas).filter(Boolean))).sort();
+      kelasSelect.innerHTML = `
+        <option value="">Semua Kelas</option>
+        ${uniqueClasses.map((k) => `<option value="${k}" ${k === selectedVal ? 'selected' : ''}>${k}</option>`).join('')}
+      `;
+    }
+
+    let payments = allPayments;
 
     // Apply filters
     if (filter.search) {

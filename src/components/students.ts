@@ -5,7 +5,7 @@
 import { createElement, showToast, showModal, closeModal, showConfirm } from '../utils/dom';
 import { formatRupiah } from '../utils/formatter';
 import { spreadsheetService } from '../services/spreadsheet';
-import { APP_CONFIG, KELAS_LIST, MONTHS } from '../config/constants';
+import { APP_CONFIG, MONTHS } from '../config/constants';
 import { exportStudentsToExcel, downloadStudentTemplateExcel, downloadStudentTemplateCsv, parseStudentCsv } from '../utils/export';
 import { schoolService } from '../services/schoolService';
 import { buildSppReminderWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
@@ -41,7 +41,6 @@ export function renderStudents(): HTMLElement {
       <div class="filter-group">
         <select class="form-select" id="student-filter-kelas">
           <option value="">Semua Kelas</option>
-          ${KELAS_LIST.map((k) => `<option value="${k}">${k}</option>`).join('')}
         </select>
       </div>
       <button class="btn btn-primary" id="btn-add-student">
@@ -104,7 +103,20 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
   if (!tbody) return;
 
   try {
-    let students = await spreadsheetService.getStudents();
+    const allStudents = await spreadsheetService.getStudents();
+
+    // Dynamically populate class filter options from all registered classes
+    const filterSelect = page.querySelector('#student-filter-kelas') as HTMLSelectElement;
+    if (filterSelect) {
+      const selectedVal = kelas || filterSelect.value;
+      const uniqueClasses = Array.from(new Set(allStudents.map((s) => s.kelas).filter(Boolean))).sort();
+      filterSelect.innerHTML = `
+        <option value="">Semua Kelas (${uniqueClasses.length} kelas)</option>
+        ${uniqueClasses.map((k) => `<option value="${k}" ${k === selectedVal ? 'selected' : ''}>${k}</option>`).join('')}
+      `;
+    }
+
+    let students = allStudents;
 
     // Filter
     if (search) {
@@ -265,9 +277,12 @@ async function openSppReminderDialog(student: Student): Promise<void> {
 }
 
 /** Open student form (add/edit) */
-function openStudentForm(page: HTMLElement, student?: Student): void {
+async function openStudentForm(page: HTMLElement, student?: Student): Promise<void> {
   const isEdit = !!student;
   const title = isEdit ? 'Edit Data Siswa' : 'Tambah Siswa Baru';
+
+  const allStudents = await spreadsheetService.getStudents();
+  const existingClasses = Array.from(new Set(allStudents.map((s) => s.kelas).filter(Boolean))).sort();
 
   const formEl = createElement('div', {
     innerHTML: `
@@ -279,11 +294,15 @@ function openStudentForm(page: HTMLElement, student?: Student): void {
               placeholder="Nomor Induk Siswa" ${isEdit ? 'readonly style="opacity: 0.6;"' : ''} required>
           </div>
           <div class="form-group">
-            <label class="form-label">Kelas *</label>
-            <select class="form-select" id="form-kelas" required>
-              <option value="">Pilih Kelas</option>
-              ${KELAS_LIST.map((k) => `<option value="${k}" ${student?.kelas === k ? 'selected' : ''}>${k}</option>`).join('')}
-            </select>
+            <label class="form-label">Kelas * (Ketik Manual)</label>
+            <input type="text" class="form-input" id="form-kelas" value="${student?.kelas ?? ''}" 
+              placeholder="Ketik manual nama kelas (contoh: VII-A, X-MIPA 1, 1-A)" list="list-kelas-manual" required autocomplete="off">
+            <datalist id="list-kelas-manual">
+              ${existingClasses.map((k) => `<option value="${k}">`).join('')}
+            </datalist>
+            <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 3px;">
+              Bebas ketik format kelas apapun sesuai kebutuhan sekolah
+            </div>
           </div>
         </div>
 
@@ -334,7 +353,7 @@ function openStudentForm(page: HTMLElement, student?: Student): void {
     const data: Student = {
       nis: (formEl.querySelector('#form-nis') as HTMLInputElement).value.trim(),
       nama: (formEl.querySelector('#form-nama') as HTMLInputElement).value.trim(),
-      kelas: (formEl.querySelector('#form-kelas') as HTMLSelectElement).value,
+      kelas: (formEl.querySelector('#form-kelas') as HTMLInputElement).value.trim(),
       namaOrangTua: (formEl.querySelector('#form-ortu') as HTMLInputElement).value.trim(),
       noHp: (formEl.querySelector('#form-hp') as HTMLInputElement).value.trim(),
       nominalSpp: Number((formEl.querySelector('#form-nominal') as HTMLInputElement).value) || APP_CONFIG.nominalSppDefault,

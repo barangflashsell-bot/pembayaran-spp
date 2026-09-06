@@ -6,7 +6,7 @@ import { createElement, showToast } from '../utils/dom';
 import { formatRupiah, generateTransactionId, toISODate, getCurrentYear } from '../utils/formatter';
 import { spreadsheetService } from '../services/spreadsheet';
 import { notificationService } from '../services/notification';
-import { MONTHS, KELAS_LIST, PAYMENT_METHODS } from '../config/constants';
+import { MONTHS, PAYMENT_METHODS } from '../config/constants';
 import { renderReceipt } from './receipt';
 import type { Payment, PaymentMethod, MonthName, Student } from '../types';
 
@@ -97,7 +97,6 @@ export function renderPayment(): HTMLElement {
           <div class="filter-group">
             <select class="form-select" id="grid-filter-kelas" style="min-width: 120px;">
               <option value="">Semua Kelas</option>
-              ${KELAS_LIST.map((k) => `<option value="${k}">${k}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -129,6 +128,7 @@ export function renderPayment(): HTMLElement {
 /** Load student options into select */
 async function loadStudentOptions(page: HTMLElement): Promise<void> {
   const select = page.querySelector('#pay-student') as HTMLSelectElement;
+  const kelasFilter = page.querySelector('#grid-filter-kelas') as HTMLSelectElement;
   const students = await spreadsheetService.getStudents();
 
   students.forEach((s) => {
@@ -136,6 +136,14 @@ async function loadStudentOptions(page: HTMLElement): Promise<void> {
     option.textContent = `${s.nama} — ${s.kelas} (${s.nis})`;
     select.appendChild(option);
   });
+
+  if (kelasFilter) {
+    const uniqueClasses = Array.from(new Set(students.map((s) => s.kelas).filter(Boolean))).sort();
+    kelasFilter.innerHTML = `
+      <option value="">Semua Kelas</option>
+      ${uniqueClasses.map((k) => `<option value="${k}">${k}</option>`).join('')}
+    `;
+  }
 }
 
 /** Handle student selection */
