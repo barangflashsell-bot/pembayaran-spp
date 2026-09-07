@@ -1609,49 +1609,8 @@
 }
 
 /* ==========================================
-   Theme Switcher (Luxury Pill Button)
+   Theme Switcher (Sidebar Button)
    ========================================== */
-.floating-theme-btn {
-  position: fixed;
-  top: 18px;
-  right: 24px;
-  z-index: 120;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: var(--radius-full);
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  user-select: none;
-}
-
-.floating-theme-btn:hover {
-  border-color: var(--color-primary-light);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
-}
-
-.floating-theme-btn .theme-icon {
-  font-size: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform var(--transition-fast);
-}
-
-.floating-theme-btn:hover .theme-icon {
-  transform: rotate(20deg) scale(1.15);
-}
 
 .sidebar-theme-btn {
   width: 100%;
