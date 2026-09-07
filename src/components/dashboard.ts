@@ -138,55 +138,45 @@ async function loadDashboardData(page: HTMLElement): Promise<void> {
         `;
       } else {
         classContainer.innerHTML = classStats.map((cls) => {
-          let badgeClass = 'badge-danger';
-          let progressColor = 'var(--color-danger)';
-
-          if (cls.percentage === 100) {
-            badgeClass = 'badge-success';
-            progressColor = 'var(--color-success)';
-          } else if (cls.percentage >= 70) {
-            badgeClass = 'badge-primary';
-            progressColor = 'var(--color-primary)';
-          } else if (cls.percentage >= 30) {
-            badgeClass = 'badge-warning';
-            progressColor = 'var(--color-warning)';
-          }
-
           return `
-            <div class="card class-stat-card animate-fade-in">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-3);">
-                <div style="display: flex; align-items: center; gap: var(--space-3);">
-                  <div style="width: 40px; height: 40px; border-radius: var(--radius-lg); background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                    🏫
-                  </div>
-                  <div>
-                    <div style="font-weight: 700; font-size: var(--font-size-base); color: var(--color-text-primary);">${cls.className}</div>
-                    <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">${cls.totalSiswa} Siswa Terdaftar</div>
-                  </div>
+            <div class="card class-stat-card animate-fade-in" style="padding: var(--space-5);">
+              <!-- Header: Nama Kelas & Tag Total Siswa -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-3);">
+                <div style="display: flex; align-items: center; gap: var(--space-2);">
+                  <span style="font-size: 20px;">🏫</span>
+                  <span style="font-weight: 700; font-size: var(--font-size-base); color: var(--color-text-primary);">${cls.className}</span>
                 </div>
-                <span class="badge ${badgeClass}" style="font-size: 11px; font-weight: 700; padding: 3px 8px;">
-                  ${cls.percentage}% Lunas
+                <span class="badge badge-secondary" style="font-size: 11px;">
+                  ${cls.totalSiswa} Siswa
                 </span>
               </div>
 
-              <!-- Progress Bar -->
-              <div style="background: var(--color-surface-2); border-radius: var(--radius-full); height: 7px; overflow: hidden; margin-bottom: var(--space-4);">
-                <div style="background: ${progressColor}; height: 100%; width: ${cls.percentage}%; border-radius: var(--radius-full); transition: width 0.6s ease;"></div>
+              <!-- Body: Diagram Bundar Rasio Bayar vs Belum -->
+              <div style="display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4);">
+                ${renderCircularRatioDiagram(cls.sudahBayar, cls.belumBayar, 96, 10)}
+
+                <div style="flex: 1; display: flex; flex-direction: column; gap: var(--space-2);">
+                  <!-- Rasio Sudah Bayar -->
+                  <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); display: inline-block;"></span>
+                      <span style="font-size: 11px; font-weight: 600; color: var(--color-text-secondary);">Sudah Bayar</span>
+                    </div>
+                    <span style="font-weight: 700; font-size: 12px; color: var(--color-success);">${cls.sudahBayar} siswa</span>
+                  </div>
+
+                  <!-- Rasio Belum Bayar -->
+                  <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-danger); display: inline-block;"></span>
+                      <span style="font-size: 11px; font-weight: 600; color: var(--color-text-secondary);">Belum Bayar</span>
+                    </div>
+                    <span style="font-weight: 700; font-size: 12px; color: ${cls.belumBayar > 0 ? 'var(--color-danger)' : 'var(--color-text-muted)'};">${cls.belumBayar} siswa</span>
+                  </div>
+                </div>
               </div>
 
-              <!-- Micro Stats Grid -->
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-3); background: rgba(0, 0, 0, 0.18); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                <div>
-                  <div style="font-size: 10px; color: var(--color-text-muted); text-transform: uppercase;">Sudah Bayar</div>
-                  <div style="font-weight: 700; color: var(--color-success); font-size: var(--font-size-sm);">${cls.sudahBayar} Siswa</div>
-                </div>
-                <div style="text-align: right;">
-                  <div style="font-size: 10px; color: var(--color-text-muted); text-transform: uppercase;">Belum Bayar</div>
-                  <div style="font-weight: 700; color: ${cls.belumBayar > 0 ? 'var(--color-danger)' : 'var(--color-text-muted)'}; font-size: var(--font-size-sm);">${cls.belumBayar} Siswa</div>
-                </div>
-              </div>
-
-              <!-- Financial Summary -->
+              <!-- Financial Summary Footer -->
               <div style="border-top: 1px dashed var(--color-border); padding-top: var(--space-3); display: flex; justify-content: space-between; align-items: center; font-size: var(--font-size-xs);">
                 <div>
                   <span style="color: var(--color-text-muted); display: block; font-size: 10px;">Terkumpul:</span>
@@ -304,3 +294,51 @@ function createStatCard(
   });
   return card;
 }
+
+/** Render circular donut diagram showing ratio of paid vs unpaid */
+function renderCircularRatioDiagram(sudah: number, belum: number, size = 96, strokeWidth = 10): string {
+  const total = sudah + belum;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const percentage = total > 0 ? Math.round((sudah / total) * 100) : 0;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  const paidColor = 'var(--color-success)';
+  const unpaidColor = 'var(--color-danger)';
+
+  return `
+    <div class="circular-chart-box" style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform: rotate(-90deg); overflow: visible;">
+        <!-- Track dasar: Belum Bayar (Merah) -->
+        <circle 
+          cx="${size / 2}" 
+          cy="${size / 2}" 
+          r="${radius}" 
+          fill="none" 
+          stroke="${unpaidColor}" 
+          stroke-width="${strokeWidth}" 
+          stroke-opacity="0.3"
+        />
+        <!-- Busur terisi: Sudah Bayar (Hijau) -->
+        <circle 
+          cx="${size / 2}" 
+          cy="${size / 2}" 
+          r="${radius}" 
+          fill="none" 
+          stroke="${paidColor}" 
+          stroke-width="${strokeWidth}" 
+          stroke-dasharray="${circumference}" 
+          stroke-dashoffset="${strokeDashoffset}" 
+          stroke-linecap="round"
+          style="transition: stroke-dashoffset 0.8s ease;"
+        />
+      </svg>
+      <!-- Angka persentase dan keterangan lunas di tengah lingkaran -->
+      <div style="position: absolute; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+        <span style="font-size: 16px; font-weight: 800; color: var(--color-text-primary); line-height: 1;">${percentage}%</span>
+        <span style="font-size: 9px; color: var(--color-text-muted); text-transform: uppercase; margin-top: 3px; font-weight: 600;">Lunas</span>
+      </div>
+    </div>
+  `;
+}
+
