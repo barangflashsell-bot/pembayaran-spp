@@ -57,6 +57,9 @@ export function renderStudents(): HTMLElement {
         <p class="page-description">Kelola data siswa yang terdaftar & status kontak wali murid</p>
       </div>
       <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+        <button class="btn btn-secondary" id="btn-naik-kelas" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+          <span>🎓</span> Naik Kelas
+        </button>
         <button class="btn btn-secondary" id="btn-toggle-mark-all" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
           <span>☑️</span> Tandai Siswa
         </button>
@@ -75,12 +78,15 @@ export function renderStudents(): HTMLElement {
         <span style="font-size: 20px;">☑️</span>
         <div>
           <span style="font-weight: 700; color: #fca5a5; font-size: var(--font-size-sm);" id="bulk-selected-count">0 Siswa Ditandai</span>
-          <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">Siswa yang ditandai siap untuk dihapus bersamaan</span>
+          <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">Siswa yang ditandai siap untuk dinaikkan kelas atau dihapus bersamaan</span>
         </div>
       </div>
-      <div style="display: flex; gap: var(--space-2); align-items: center;">
+      <div style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
         <button class="btn btn-secondary btn-sm" id="btn-cancel-bulk-select" style="font-size: var(--font-size-xs);">
           Batal Tandai
+        </button>
+        <button class="btn btn-primary btn-sm" id="btn-bulk-promote" style="font-weight: 700; font-size: var(--font-size-xs); background: #6366f1; border-color: #6366f1; color: white; display: inline-flex; align-items: center; gap: 6px;">
+          <span>🎓</span> Naik Kelas
         </button>
         <button class="btn btn-danger btn-sm" id="btn-bulk-delete" style="font-weight: 700; font-size: var(--font-size-xs); background: #ef4444; border-color: #ef4444; color: white; display: inline-flex; align-items: center; gap: 6px;">
           <span>🗑️</span> Hapus Siswa Ditandai
@@ -191,6 +197,14 @@ export function renderStudents(): HTMLElement {
     const school = schoolService.getSchoolInfo();
     exportStudentsToExcel(currentDisplayedStudents, school.namaSekolah);
     showToast(`Berhasil mengekspor ${currentDisplayedStudents.length} siswa ke file Excel/CSV!`, 'success');
+  });
+
+  // Naik Kelas handlers
+  page.querySelector('#btn-naik-kelas')?.addEventListener('click', () => {
+    openNaikKelasModal(page, Array.from(selectedNisSet));
+  });
+  page.querySelector('#btn-bulk-promote')?.addEventListener('click', () => {
+    openNaikKelasModal(page, Array.from(selectedNisSet));
   });
 
   // Import Excel / CSV handler
@@ -785,6 +799,311 @@ function openImportStudentsModal(page: HTMLElement): void {
     );
     closeModal();
     loadStudentTable(page);
+  });
+}
+
+/** Suggest next grade/class level from current class name */
+function suggestNextClass(currentClass: string): string {
+  const c = currentClass.trim();
+  if (!c) return '';
+
+  // Roman numerals check (SMP / SMA)
+  if (/^VII\b/i.test(c)) return c.replace(/^VII\b/i, 'VIII');
+  if (/^VIII\b/i.test(c)) return c.replace(/^VIII\b/i, 'IX');
+  if (/^IX\b/i.test(c)) return 'Lulus';
+
+  if (/^X\b/i.test(c) && !/^XI\b/i.test(c) && !/^XII\b/i.test(c)) return c.replace(/^X\b/i, 'XI');
+  if (/^XI\b/i.test(c)) return c.replace(/^XI\b/i, 'XII');
+  if (/^XII\b/i.test(c)) return 'Lulus';
+
+  // Arabic numbers check (SD/MI 1-6 or SMA 10-12)
+  const numMatch = c.match(/^(\d+)(.*)$/);
+  if (numMatch) {
+    const num = parseInt(numMatch[1], 10);
+    const suffix = numMatch[2] || '';
+    if (num === 6 || num === 9 || num === 12) return 'Lulus';
+    return `${num + 1}${suffix}`;
+  }
+
+  return '';
+}
+
+/** Open Modal for Naik Kelas (Grade Promotion) */
+async function openNaikKelasModal(page: HTMLElement, preselectedNis: string[] = []): Promise<void> {
+  const allStudents = await spreadsheetService.getStudents();
+  if (allStudents.length === 0) {
+    showToast('Belum ada data siswa untuk diproses naik kelas', 'warning');
+    return;
+  }
+
+  const school = schoolService.getSchoolInfo();
+  const uniqueClasses = Array.from(new Set(allStudents.map((s) => s.kelas).filter(Boolean))).sort();
+  const hasSelection = preselectedNis.length > 0;
+
+  const modalEl = createElement('div', {
+    innerHTML: `
+      <div style="display: flex; flex-direction: column; gap: var(--space-4); max-width: 620px;">
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin: 0;">
+          Fitur ini mempermudah pemindahan siswa ke tingkat kelas berikutnya secara serentak (rombongan belajar) atau berdasarkan siswa yang ditandai.
+        </p>
+
+        <!-- Method Selection -->
+        <div class="form-group">
+          <label class="form-label" style="font-weight: 700;">Metode Pemilihan Siswa</label>
+          <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; margin-top: 4px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--font-size-sm);">
+              <input type="radio" name="promote-method" id="radio-by-class" value="by-class" ${!hasSelection ? 'checked' : ''} style="accent-color: var(--color-primary); cursor: pointer;">
+              <span>Satu Rombel / Berdasarkan Kelas Asal</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--font-size-sm); ${!hasSelection ? 'opacity: 0.5;' : ''}">
+              <input type="radio" name="promote-method" id="radio-by-selection" value="by-selection" ${hasSelection ? 'checked' : ''} ${!hasSelection ? 'disabled' : ''} style="accent-color: var(--color-primary); cursor: pointer;">
+              <span>Siswa yang Sedang Ditandai (${preselectedNis.length} siswa)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Source Class Group -->
+        <div class="form-group" id="group-source-class" style="${hasSelection ? 'display: none;' : ''}">
+          <label class="form-label" style="font-weight: 700;">Pilih Kelas Asal *</label>
+          <select class="form-select" id="promote-source-class">
+            <option value="">-- Pilih Kelas Asal --</option>
+            ${uniqueClasses.map((cls) => {
+              const count = allStudents.filter((s) => s.kelas === cls).length;
+              return `<option value="${cls}">${cls} (${count} siswa)</option>`;
+            }).join('')}
+          </select>
+        </div>
+
+        <!-- Destination Class Group -->
+        <div class="form-group">
+          <label class="form-label" style="font-weight: 700;">Kelas Tujuan / Baru *</label>
+          <input 
+            type="text" 
+            class="form-input" 
+            id="promote-target-class" 
+            placeholder="Ketik nama kelas baru (contoh: VIII-A atau Lulus)" 
+            list="list-kelas-rekomendasi"
+            required
+            autocomplete="off"
+          >
+          <datalist id="list-kelas-rekomendasi">
+            ${uniqueClasses.map((c) => `<option value="${c}">`).join('')}
+            <option value="Lulus">
+            <option value="Alumni">
+          </datalist>
+
+          <!-- Quick suggestions badges -->
+          <div id="promote-suggestions" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center;">
+            <span style="font-size: 11px; color: var(--color-text-muted);">Saran cepat:</span>
+            <button type="button" class="badge badge-info btn-suggest" data-val="VIII-A" style="cursor: pointer; border: none;">VIII-A</button>
+            <button type="button" class="badge badge-info btn-suggest" data-val="IX-A" style="cursor: pointer; border: none;">IX-A</button>
+            <button type="button" class="badge badge-success btn-suggest" data-val="Lulus" style="cursor: pointer; border: none;">🎓 Lulus / Alumni</button>
+          </div>
+        </div>
+
+        <!-- SPP Fee Update Option -->
+        <div style="background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3);">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--font-size-sm); user-select: none;">
+            <input type="checkbox" id="promote-update-spp" style="accent-color: var(--color-primary); cursor: pointer;">
+            <strong>Sesuaikan Tarif Nominal SPP di Kelas Baru</strong>
+          </label>
+          <div id="group-target-spp" style="display: none; margin-top: var(--space-3); padding-left: 24px;">
+            <label class="form-label" style="font-size: var(--font-size-xs);">Nominal SPP Baru per Bulan (Rp)</label>
+            <input type="number" class="form-input" id="promote-new-spp" placeholder="${school.nominalSppDefault}" min="0" step="5000">
+            <span style="font-size: 11px; color: var(--color-text-muted);">Biarkan kosong jika tetap menggunakan tarif sekarang.</span>
+          </div>
+        </div>
+
+        <!-- Students Preview Area -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary);">
+              Pratinjau Siswa yang Akan Diproses:
+            </span>
+            <span id="promote-count-badge" class="badge badge-info text-xs">0 Siswa</span>
+          </div>
+          <div style="max-height: 140px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-dark);">
+            <table class="data-table" style="font-size: 11px; margin: 0; width: 100%;">
+              <thead>
+                <tr>
+                  <th style="padding: 6px 8px;">NIS</th>
+                  <th style="padding: 6px 8px;">Nama Siswa</th>
+                  <th style="padding: 6px 8px;">Kelas Sekarang</th>
+                  <th style="padding: 6px 8px;">Kelas Tujuan</th>
+                </tr>
+              </thead>
+              <tbody id="promote-preview-tbody">
+                <tr><td colspan="4" class="text-center text-muted" style="padding: 12px;">Pilih kelas asal atau siswa untuk melihat pratinjau</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+          <button class="btn btn-secondary" id="btn-cancel-promote">Batal</button>
+          <button class="btn btn-primary" id="btn-confirm-promote" disabled style="font-weight: 700; background: #6366f1; border-color: #6366f1;">
+            🎓 Konfirmasi Naik Kelas
+          </button>
+        </div>
+      </div>
+    `
+  });
+
+  showModal('🎓 Naik Kelas / Pindah Rombel Siswa', modalEl);
+
+  // Element references
+  const radioByClass = modalEl.querySelector('#radio-by-class') as HTMLInputElement;
+  const radioBySelection = modalEl.querySelector('#radio-by-selection') as HTMLInputElement;
+  const groupSourceClass = modalEl.querySelector('#group-source-class') as HTMLElement;
+  const selectSourceClass = modalEl.querySelector('#promote-source-class') as HTMLSelectElement;
+  const inputTargetClass = modalEl.querySelector('#promote-target-class') as HTMLInputElement;
+  const checkboxUpdateSpp = modalEl.querySelector('#promote-update-spp') as HTMLInputElement;
+  const groupTargetSpp = modalEl.querySelector('#group-target-spp') as HTMLElement;
+  const inputNewSpp = modalEl.querySelector('#promote-new-spp') as HTMLInputElement;
+  const countBadge = modalEl.querySelector('#promote-count-badge') as HTMLElement;
+  const previewTbody = modalEl.querySelector('#promote-preview-tbody') as HTMLElement;
+  const confirmBtn = modalEl.querySelector('#btn-confirm-promote') as HTMLButtonElement;
+  const cancelBtn = modalEl.querySelector('#btn-cancel-promote') as HTMLButtonElement;
+  const suggestionsBox = modalEl.querySelector('#promote-suggestions') as HTMLElement;
+
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Toggle SPP group
+  checkboxUpdateSpp.addEventListener('change', () => {
+    groupTargetSpp.style.display = checkboxUpdateSpp.checked ? 'block' : 'none';
+  });
+
+  // Suggestion buttons
+  suggestionsBox.querySelectorAll<HTMLButtonElement>('.btn-suggest').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const val = btn.getAttribute('data-val');
+      if (val) {
+        inputTargetClass.value = val;
+        updatePreview();
+      }
+    });
+  });
+
+  // Method radios change
+  radioByClass.addEventListener('change', () => {
+    groupSourceClass.style.display = 'block';
+    updatePreview();
+  });
+  radioBySelection?.addEventListener('change', () => {
+    groupSourceClass.style.display = 'none';
+    updatePreview();
+  });
+
+  // Source class change
+  selectSourceClass.addEventListener('change', () => {
+    const src = selectSourceClass.value;
+    if (src) {
+      const suggested = suggestNextClass(src);
+      if (suggested) {
+        inputTargetClass.value = suggested;
+      }
+    }
+    updatePreview();
+  });
+
+  // Target class input
+  inputTargetClass.addEventListener('input', updatePreview);
+
+  function getTargetStudents(): Student[] {
+    const isBySelection = radioBySelection?.checked;
+    if (isBySelection) {
+      const set = new Set(preselectedNis);
+      return allStudents.filter((s) => set.has(s.nis));
+    } else {
+      const src = selectSourceClass.value;
+      if (!src) return [];
+      return allStudents.filter((s) => s.kelas === src);
+    }
+  }
+
+  function updatePreview(): void {
+    const targetStudents = getTargetStudents();
+    const targetClass = inputTargetClass.value.trim();
+
+    countBadge.textContent = `${targetStudents.length} Siswa`;
+
+    if (targetStudents.length === 0) {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '🎓 Konfirmasi Naik Kelas';
+      previewTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding: 12px;">Pilih kelas asal atau siswa untuk melihat pratinjau</td></tr>`;
+      return;
+    }
+
+    if (!targetClass) {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '🎓 Konfirmasi Naik Kelas';
+      previewTbody.innerHTML = targetStudents.slice(0, 15).map((s) => `
+        <tr>
+          <td style="padding: 4px 8px;"><code>${s.nis}</code></td>
+          <td style="padding: 4px 8px; font-weight: 600;">${s.nama}</td>
+          <td style="padding: 4px 8px;"><span class="badge badge-info text-xs">${s.kelas}</span></td>
+          <td style="padding: 4px 8px; color: var(--color-text-muted); font-style: italic;">(Isi kelas tujuan)</td>
+        </tr>
+      `).join('');
+      return;
+    }
+
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = `🎓 Naikkan ${targetStudents.length} Siswa ke "${targetClass}"`;
+
+    previewTbody.innerHTML = targetStudents.slice(0, 15).map((s) => `
+      <tr>
+        <td style="padding: 4px 8px;"><code>${s.nis}</code></td>
+        <td style="padding: 4px 8px; font-weight: 600;">${s.nama}</td>
+        <td style="padding: 4px 8px;"><span class="badge badge-info text-xs">${s.kelas}</span></td>
+        <td style="padding: 4px 8px; font-weight: 700; color: #a5b4fc;">➜ ${targetClass}</td>
+      </tr>
+    `).join('');
+
+    if (targetStudents.length > 15) {
+      previewTbody.innerHTML += `
+        <tr>
+          <td colspan="4" class="text-center text-muted" style="padding: 4px 8px; font-style: italic;">
+            ...dan ${targetStudents.length - 15} siswa lainnya
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  // Initial update
+  updatePreview();
+
+  // Confirm Naik Kelas handler
+  confirmBtn.addEventListener('click', async () => {
+    const targetStudents = getTargetStudents();
+    const targetClass = inputTargetClass.value.trim();
+    if (targetStudents.length === 0 || !targetClass) return;
+
+    let newSpp: number | undefined;
+    if (checkboxUpdateSpp.checked && inputNewSpp.value.trim()) {
+      newSpp = Number(inputNewSpp.value.trim());
+      if (isNaN(newSpp) || newSpp <= 0) newSpp = undefined;
+    }
+
+    const confirmed = await showConfirm(
+      `Yakin ingin menaikkan ${targetStudents.length} siswa ke kelas "${targetClass}"?` + 
+      (newSpp ? `\nTarif SPP akan diperbarui menjadi ${formatRupiah(newSpp)}/bulan.` : '')
+    );
+
+    if (confirmed) {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Memproses...';
+
+      const nisList = targetStudents.map((s) => s.nis);
+      const count = await spreadsheetService.promoteStudents(nisList, targetClass, newSpp);
+
+      selectedNisSet.clear();
+      showToast(`Berhasil menaikkan ${count} siswa ke kelas "${targetClass}"!`, 'success');
+      closeModal();
+      loadStudentTable(page);
+    }
   });
 }
 

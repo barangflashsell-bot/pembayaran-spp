@@ -246,6 +246,43 @@ class SpreadsheetService {
     return deletedCount;
   }
 
+  /** Bulk promote students to a new class / grade level */
+  async promoteStudents(
+    nisList: string[],
+    newClass: string,
+    newNominalSpp?: number
+  ): Promise<number> {
+    if (nisList.length === 0 || !newClass.trim()) return 0;
+    const toUpdate = new Set(nisList);
+    const targetClass = newClass.trim();
+
+    const students = this.getLocal<Student>(STORAGE_KEYS.STUDENTS);
+    let count = 0;
+    const updated = students.map((s) => {
+      if (toUpdate.has(s.nis)) {
+        count++;
+        return {
+          ...s,
+          kelas: targetClass,
+          ...(newNominalSpp !== undefined && newNominalSpp > 0 ? { nominalSpp: newNominalSpp } : {})
+        };
+      }
+      return s;
+    });
+
+    this.setLocal(STORAGE_KEYS.STUDENTS, updated);
+
+    if (this.useApi) {
+      try {
+        await this.apiPost('promoteStudents', { nisList, newClass: targetClass, newNominalSpp });
+      } catch (e) {
+        console.warn('API sync promoteStudents failed:', e);
+      }
+    }
+
+    return count;
+  }
+
   /** Get student by NIS */
   async getStudentByNis(nis: string): Promise<Student | undefined> {
     const students = await this.getStudents();
