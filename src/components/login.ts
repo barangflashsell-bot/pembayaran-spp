@@ -23,26 +23,27 @@ export function renderLogin(): HTMLElement {
 
       <!-- Unified Single Login Form -->
       <form id="form-unified-login">
-        <div class="form-group mb-4">
-          <label class="form-label" id="label-login-id">Nama Siswa / NIS / Username</label>
+        <div class="form-group mb-3">
+          <label class="form-label" id="label-login-id">NIS / Nama / Username</label>
           <input 
             type="text" 
             class="form-input form-input-lg" 
             id="input-login-id" 
-            placeholder="Masukkan Nama, NIS, atau Username" 
+            placeholder="Masukkan NIS, Nama, atau admin" 
             required 
             autofocus
             autocomplete="username"
           >
         </div>
 
-        <div class="form-group mb-4 animate-fade-in" id="group-login-pass" style="display: none;">
-          <label class="form-label">Password Admin</label>
+        <div class="form-group mb-4" id="group-login-pass">
+          <label class="form-label">Password</label>
           <input 
             type="password" 
             class="form-input form-input-lg" 
             id="input-login-pass" 
-            placeholder="Masukkan password"
+            placeholder="Masukkan password" 
+            required
             autocomplete="current-password"
           >
         </div>
@@ -56,41 +57,22 @@ export function renderLogin(): HTMLElement {
 
   const form = container.querySelector('#form-unified-login') as HTMLFormElement;
   const inputId = container.querySelector('#input-login-id') as HTMLInputElement;
-  const groupPass = container.querySelector('#group-login-pass') as HTMLElement;
   const inputPass = container.querySelector('#input-login-pass') as HTMLInputElement;
   const btnSubmit = container.querySelector('#btn-submit-login') as HTMLButtonElement;
-
-  // Auto-detect when 'admin' is typed to reveal password field smoothly
-  inputId.addEventListener('input', () => {
-    const val = inputId.value.trim().toLowerCase();
-    if (val === 'admin') {
-      groupPass.style.display = 'block';
-    } else {
-      groupPass.style.display = 'none';
-      inputPass.value = '';
-    }
-  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = inputId.value.trim();
-    if (!id) return;
+    const pass = inputPass.value;
+    if (!id || !pass) return;
 
     btnSubmit.disabled = true;
     btnSubmit.textContent = 'Memeriksa...';
 
     try {
-      // 1. Jika pengguna mengetik 'admin', periksa sebagai Admin
+      // 1. Jika pengguna adalah 'admin', verifikasi login Admin
       if (id.toLowerCase() === 'admin') {
-        if (groupPass.style.display === 'none' || !inputPass.value) {
-          groupPass.style.display = 'block';
-          inputPass.focus();
-          btnSubmit.disabled = false;
-          btnSubmit.textContent = 'Masuk';
-          return;
-        }
-
-        const res = authService.loginAsAdmin(id, inputPass.value);
+        const res = authService.loginAsAdmin(id, pass);
         if (!res.success) {
           showToast(res.error || 'Password admin salah', 'error');
           inputPass.focus();
@@ -105,10 +87,12 @@ export function renderLogin(): HTMLElement {
         return;
       }
 
-      // 2. Jika bukan 'admin', secara otomatis proses sebagai Siswa (via Nama atau NIS)
-      const res = await authService.loginAsStudent(id);
+      // 2. Jika bukan admin, verifikasi login Siswa (via NIS atau Nama + Password)
+      const res = await authService.loginAsStudent(id, pass);
       if (!res.success) {
-        showToast(res.error || 'Data siswa tidak ditemukan', 'error');
+        showToast(res.error || 'Data siswa atau password salah', 'error');
+        inputPass.focus();
+        inputPass.select();
         btnSubmit.disabled = false;
         btnSubmit.textContent = 'Masuk';
         return;

@@ -77,6 +77,7 @@ export interface Student {
   namaOrangTua: string;
   noHp: string;
   nominalSpp: number;
+  password?: string;
 }
 
 /** Data pembayaran */

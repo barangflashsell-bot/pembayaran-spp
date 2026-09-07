@@ -325,11 +325,19 @@ async function openStudentForm(page: HTMLElement, student?: Student): Promise<vo
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Nominal SPP per Bulan</label>
-          <input type="number" class="form-input" id="form-nominal" 
-            value="${student?.nominalSpp ?? APP_CONFIG.nominalSppDefault}" 
-            placeholder="250000" min="0">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nominal SPP per Bulan</label>
+            <input type="number" class="form-input" id="form-nominal" 
+              value="${student?.nominalSpp ?? APP_CONFIG.nominalSppDefault}" 
+              placeholder="250000" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password Siswa</label>
+            <input type="text" class="form-input" id="form-password" 
+              value="${student?.password ?? ''}" 
+              placeholder="Default: sama dengan NIS">
+          </div>
         </div>
 
         <div class="form-actions">
@@ -350,6 +358,8 @@ async function openStudentForm(page: HTMLElement, student?: Student): Promise<vo
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const passInput = (formEl.querySelector('#form-password') as HTMLInputElement).value.trim();
+
     const data: Student = {
       nis: (formEl.querySelector('#form-nis') as HTMLInputElement).value.trim(),
       nama: (formEl.querySelector('#form-nama') as HTMLInputElement).value.trim(),
@@ -357,6 +367,7 @@ async function openStudentForm(page: HTMLElement, student?: Student): Promise<vo
       namaOrangTua: (formEl.querySelector('#form-ortu') as HTMLInputElement).value.trim(),
       noHp: (formEl.querySelector('#form-hp') as HTMLInputElement).value.trim(),
       nominalSpp: Number((formEl.querySelector('#form-nominal') as HTMLInputElement).value) || APP_CONFIG.nominalSppDefault,
+      password: passInput || undefined,
     };
 
     if (!data.nis || !data.nama || !data.kelas || !data.namaOrangTua) {

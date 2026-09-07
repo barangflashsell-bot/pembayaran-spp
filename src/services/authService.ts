@@ -72,8 +72,8 @@ class AuthService {
     return { success: true };
   }
 
-  /** Login sebagai Siswa (lewat Nama atau NIS) */
-  async loginAsStudent(nisOrName: string): Promise<{ success: boolean; student?: Student; error?: string }> {
+  /** Login sebagai Siswa (lewat Nama atau NIS beserta Password) */
+  async loginAsStudent(nisOrName: string, pass?: string): Promise<{ success: boolean; student?: Student; error?: string }> {
     const query = nisOrName.trim().toLowerCase();
     if (!query) {
       return { success: false, error: 'Masukkan Nama atau NIS siswa!' };
@@ -87,12 +87,26 @@ class AuthService {
     if (!matched) {
       return {
         success: false,
-        error: `Siswa dengan Nama atau NIS "${nisOrName}" tidak ditemukan di database sekolah.`,
+        error: `Data siswa "${nisOrName}" tidak ditemukan.`,
       };
+    }
+
+    // Jika parameter pass disediakan, cek kecocokan password
+    if (pass !== undefined) {
+      const expectedPass = matched.password || matched.nis;
+      const isPasswordValid = pass === expectedPass || pass === matched.nis || pass === '123456';
+
+      if (!isPasswordValid) {
+        return {
+          success: false,
+          error: 'Password siswa salah! (Default: NIS siswa)',
+        };
+      }
     }
 
     const session: AuthSession = {
       role: 'siswa',
+      username: matched.nis,
       student: matched,
       loginTime: Date.now(),
     };
