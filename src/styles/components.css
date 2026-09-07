@@ -1550,4 +1550,25 @@
   color: var(--color-text-muted);
 }
 
+/* ==========================================
+   Class Payment Statistics (Dashboard)
+   ========================================== */
+.class-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.class-stat-card {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
+}
+
+.class-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-primary-light);
+}
+
 

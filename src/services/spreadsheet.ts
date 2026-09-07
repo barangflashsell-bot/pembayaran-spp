@@ -2,7 +2,7 @@
 // Spreadsheet Service — Google Sheets Integration
 // ==========================================
 
-import type { Student, Payment, ApiResponse, DashboardStats } from '../types';
+import type { Student, Payment, ApiResponse, DashboardStats, ClassPaymentStats, MonthName } from '../types';
 import { APP_CONFIG, STORAGE_KEYS } from '../config/constants';
 import { formatRupiah } from '../utils/formatter';
 
@@ -115,7 +115,25 @@ class SpreadsheetService {
       const res = await this.apiGet<Student[]>('getStudents');
       return res.data ?? [];
     }
-    return this.getLocal<Student>(STORAGE_KEYS.STUDENTS);
+    const local = this.getLocal<Student>(STORAGE_KEYS.STUDENTS);
+    if (local.length > 0) {
+      return local;
+    }
+
+    // Default sample data dengan 3 kelas terpisah (VII-A, VII-B, VII-C)
+    const defaultStudents: Student[] = [
+      { nis: '2026001', nama: 'Budi Santoso', kelas: 'VII-A', namaOrangTua: 'Joko Santoso', noHp: '081234567890', nominalSpp: 250000 },
+      { nis: '2026002', nama: 'Siti Rahmawati', kelas: 'VII-A', namaOrangTua: 'Ahmad Dahlan', noHp: '081234567891', nominalSpp: 250000 },
+      { nis: '2026003', nama: 'Rian Hidayat', kelas: 'VII-A', namaOrangTua: 'Hidayat', noHp: '081234567892', nominalSpp: 250000 },
+      { nis: '2026004', nama: 'Dewi Lestari', kelas: 'VII-B', namaOrangTua: 'Bambang', noHp: '081234567893', nominalSpp: 250000 },
+      { nis: '2026005', nama: 'Rizky Pratama', kelas: 'VII-B', namaOrangTua: 'Pratama', noHp: '081234567894', nominalSpp: 250000 },
+      { nis: '2026006', nama: 'Putri Ananda', kelas: 'VII-B', namaOrangTua: 'Ananda', noHp: '081234567895', nominalSpp: 250000 },
+      { nis: '2026007', nama: 'Bayu Nugroho', kelas: 'VII-C', namaOrangTua: 'Nugroho', noHp: '081234567896', nominalSpp: 250000 },
+      { nis: '2026008', nama: 'Nabila Salsabila', kelas: 'VII-C', namaOrangTua: 'Sulaeman', noHp: '081234567897', nominalSpp: 250000 },
+      { nis: '2026009', nama: 'Farhan Maulana', kelas: 'VII-C', namaOrangTua: 'Maulana', noHp: '081234567898', nominalSpp: 250000 },
+    ];
+    this.setLocal(STORAGE_KEYS.STUDENTS, defaultStudents);
+    return defaultStudents;
   }
 
   /** Add a new student */
@@ -349,6 +367,61 @@ class SpreadsheetService {
     );
 
     return students.filter((s) => !paidNis.has(s.nis));
+  }
+
+  /** Get payment statistics grouped dynamically by class (fleksibel sesuai kelas yang ada) */
+  async getClassPaymentStats(bulan: MonthName, tahun: number): Promise<ClassPaymentStats[]> {
+    const students = await this.getStudents();
+    const payments = await this.getPayments();
+
+    if (students.length === 0) return [];
+
+    // Set NIS siswa yang sudah bayar SPP bulan & tahun ini
+    const paidNisSet = new Set(
+      payments
+        .filter((p) => 
+          p.status === 'lunas' && (
+            (p.bulan === bulan && p.tahun === tahun) ||
+            (p.items && p.items.some((it) => it.bulan === bulan && it.tahun === tahun))
+          )
+        )
+        .map((p) => p.nis)
+    );
+
+    // Dapatkan semua kelas unik secara dinamis dari data siswa
+    const uniqueClasses = Array.from(
+      new Set(students.map((s) => s.kelas ? s.kelas.trim() : 'Tanpa Kelas'))
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+    return uniqueClasses.map((className) => {
+      const classStudents = students.filter((s) => (s.kelas ? s.kelas.trim() : 'Tanpa Kelas') === className);
+      const totalSiswa = classStudents.length;
+
+      const sudahBayar = classStudents.filter((s) => paidNisSet.has(s.nis)).length;
+      const belumBayar = Math.max(0, totalSiswa - sudahBayar);
+      const percentage = totalSiswa > 0 ? Math.round((sudahBayar / totalSiswa) * 100) : 0;
+
+      // Hitung total uang terkumpul dari seluruh pembayaran siswa di kelas ini
+      const classNisSet = new Set(classStudents.map((s) => s.nis));
+      const totalTerkumpul = payments
+        .filter((p) => p.status === 'lunas' && classNisSet.has(p.nis))
+        .reduce((sum, p) => sum + p.nominal, 0);
+
+      // Hitung total sisa tunggakan SPP bulan ini untuk siswa yang belum bayar
+      const totalTunggakan = classStudents
+        .filter((s) => !paidNisSet.has(s.nis))
+        .reduce((sum, s) => sum + (s.nominalSpp || APP_CONFIG.nominalSppDefault), 0);
+
+      return {
+        className,
+        totalSiswa,
+        sudahBayar,
+        belumBayar,
+        percentage,
+        totalTerkumpul,
+        totalTunggakan,
+      };
+    });
   }
 }
 

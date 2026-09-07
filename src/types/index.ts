@@ -108,6 +108,17 @@ export interface DashboardStats {
   totalOnline?: number;
 }
 
+/** Statistik pembayaran per kelas */
+export interface ClassPaymentStats {
+  className: string;
+  totalSiswa: number;
+  sudahBayar: number;
+  belumBayar: number;
+  percentage: number;
+  totalTerkumpul: number;
+  totalTunggakan: number;
+}
+
 /** Response dari API Google Apps Script */
 export interface ApiResponse<T = unknown> {
   success: boolean;

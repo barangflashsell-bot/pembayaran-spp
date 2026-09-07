@@ -26,6 +26,23 @@ export function renderDashboard(): HTMLElement {
       ${renderStatSkeleton()}
     </div>
 
+    <!-- Dynamic Class Payment Statistics Section -->
+    <div class="class-stats-section mb-8" id="class-stats-section">
+      <div class="section-header" style="margin-bottom: var(--space-4);">
+        <div>
+          <h3 class="section-title">📊 Statistik Pembayaran per Kelas</h3>
+          <p class="text-xs text-muted">Tingkat kelunasan pembayaran dan perolehan dana per rombel kelas aktif (${MONTHS[getCurrentMonthIndex()]} ${getCurrentYear()})</p>
+        </div>
+        <span class="badge badge-primary text-xs" id="badge-total-classes">Memuat kelas...</span>
+      </div>
+
+      <div class="class-stats-grid" id="class-stats-container">
+        <div class="card animate-pulse text-center text-muted" style="padding: var(--space-6); grid-column: 1 / -1;">
+          Memuat statistik per kelas...
+        </div>
+      </div>
+    </div>
+
     <div class="grid-2" id="dashboard-grid">
       <div class="card" id="unpaid-card">
         <div class="section-header">
@@ -70,10 +87,11 @@ async function loadDashboardData(page: HTMLElement): Promise<void> {
   const tahun = getCurrentYear();
 
   try {
-    const [stats, unpaid, payments] = await Promise.all([
+    const [stats, unpaid, payments, classStats] = await Promise.all([
       spreadsheetService.getDashboardStats(bulan, tahun),
       spreadsheetService.getUnpaidStudents(bulan, tahun),
       spreadsheetService.getPayments(),
+      spreadsheetService.getClassPaymentStats(bulan, tahun),
     ]);
 
     const onlinePayments = payments.filter((p) => p.channel === 'online');
@@ -100,6 +118,89 @@ async function loadDashboardData(page: HTMLElement): Promise<void> {
       statsContainer.appendChild(createStatCard(
         '💰', 'Total Pemasukan', formatRupiah(stats.totalPemasukan), `Semua pos tagihan`, 'info'
       ));
+    }
+
+    // Render Dynamic Class Payment Statistics
+    const classContainer = page.querySelector('#class-stats-container');
+    const classBadge = page.querySelector('#badge-total-classes');
+    if (classBadge) {
+      classBadge.textContent = `${classStats.length} Kelas Aktif`;
+    }
+
+    if (classContainer) {
+      if (classStats.length === 0) {
+        classContainer.innerHTML = `
+          <div class="card empty-state" style="grid-column: 1 / -1; padding: var(--space-6);">
+            <div class="empty-state-icon">🏫</div>
+            <div class="empty-state-title">Belum Ada Data Kelas</div>
+            <div class="empty-state-text">Silakan tambahkan data siswa beserta rombel kelas di menu Data Siswa.</div>
+          </div>
+        `;
+      } else {
+        classContainer.innerHTML = classStats.map((cls) => {
+          let badgeClass = 'badge-danger';
+          let progressColor = 'var(--color-danger)';
+
+          if (cls.percentage === 100) {
+            badgeClass = 'badge-success';
+            progressColor = 'var(--color-success)';
+          } else if (cls.percentage >= 70) {
+            badgeClass = 'badge-primary';
+            progressColor = 'var(--color-primary)';
+          } else if (cls.percentage >= 30) {
+            badgeClass = 'badge-warning';
+            progressColor = 'var(--color-warning)';
+          }
+
+          return `
+            <div class="card class-stat-card animate-fade-in">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-3);">
+                <div style="display: flex; align-items: center; gap: var(--space-3);">
+                  <div style="width: 40px; height: 40px; border-radius: var(--radius-lg); background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    🏫
+                  </div>
+                  <div>
+                    <div style="font-weight: 700; font-size: var(--font-size-base); color: var(--color-text-primary);">${cls.className}</div>
+                    <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">${cls.totalSiswa} Siswa Terdaftar</div>
+                  </div>
+                </div>
+                <span class="badge ${badgeClass}" style="font-size: 11px; font-weight: 700; padding: 3px 8px;">
+                  ${cls.percentage}% Lunas
+                </span>
+              </div>
+
+              <!-- Progress Bar -->
+              <div style="background: var(--color-surface-2); border-radius: var(--radius-full); height: 7px; overflow: hidden; margin-bottom: var(--space-4);">
+                <div style="background: ${progressColor}; height: 100%; width: ${cls.percentage}%; border-radius: var(--radius-full); transition: width 0.6s ease;"></div>
+              </div>
+
+              <!-- Micro Stats Grid -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-bottom: var(--space-3); background: rgba(0, 0, 0, 0.18); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <div>
+                  <div style="font-size: 10px; color: var(--color-text-muted); text-transform: uppercase;">Sudah Bayar</div>
+                  <div style="font-weight: 700; color: var(--color-success); font-size: var(--font-size-sm);">${cls.sudahBayar} Siswa</div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="font-size: 10px; color: var(--color-text-muted); text-transform: uppercase;">Belum Bayar</div>
+                  <div style="font-weight: 700; color: ${cls.belumBayar > 0 ? 'var(--color-danger)' : 'var(--color-text-muted)'}; font-size: var(--font-size-sm);">${cls.belumBayar} Siswa</div>
+                </div>
+              </div>
+
+              <!-- Financial Summary -->
+              <div style="border-top: 1px dashed var(--color-border); padding-top: var(--space-3); display: flex; justify-content: space-between; align-items: center; font-size: var(--font-size-xs);">
+                <div>
+                  <span style="color: var(--color-text-muted); display: block; font-size: 10px;">Terkumpul:</span>
+                  <span style="font-weight: 700; color: var(--color-success); font-size: 13px;">${formatRupiah(cls.totalTerkumpul)}</span>
+                </div>
+                <div style="text-align: right;">
+                  <span style="color: var(--color-text-muted); display: block; font-size: 10px;">Tunggakan SPP:</span>
+                  <span style="font-weight: 700; color: ${cls.totalTunggakan > 0 ? 'var(--color-warning-light)' : 'var(--color-text-muted)'}; font-size: 13px;">${formatRupiah(cls.totalTunggakan)}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
     }
 
     // Render unpaid students list
