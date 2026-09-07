@@ -41,13 +41,6 @@ export function renderSidebar(): HTMLElement {
           </div>
         </div>
 
-        <div style="padding: var(--space-3) var(--space-4); background: rgba(99, 102, 241, 0.1); border-radius: var(--radius-lg); margin: var(--space-2) var(--space-3); border: 1px solid rgba(99, 102, 241, 0.2);">
-          <div style="font-size: 11px; color: var(--color-primary-light); font-weight: 600;">PORTAL SISWA</div>
-          <div style="font-size: 10px; color: var(--color-text-muted); margin-top: 2px;">
-            Akses mandiri tagihan & riwayat kuitansi sah
-          </div>
-        </div>
-
         <nav class="sidebar-nav" id="sidebar-nav">
           <span class="nav-label">Menu Siswa</span>
           <a href="#/portal-siswa" class="nav-link active" data-path="/portal-siswa">
@@ -59,7 +52,7 @@ export function renderSidebar(): HTMLElement {
         <div class="sidebar-footer">
           <button class="btn btn-secondary btn-sm" id="btn-sidebar-logout" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--space-2);">
             <span>🚪</span>
-            <span>Keluar Akun Siswa</span>
+            <span>Keluar</span>
           </button>
           <div class="sidebar-footer-info mt-3" style="text-align: center; font-size: 10px;">
             ${school.namaSekolah}
@@ -69,7 +62,7 @@ export function renderSidebar(): HTMLElement {
 
       sidebar.querySelector('#btn-sidebar-logout')?.addEventListener('click', () => {
         authService.logout();
-        showToast('Anda telah keluar dari akun siswa', 'info');
+        showToast('Anda telah keluar', 'info');
         router.navigate('/login');
       });
 
@@ -92,24 +85,17 @@ export function renderSidebar(): HTMLElement {
         </button>
       </div>
 
-      <div style="padding: 2px var(--space-4); margin-bottom: var(--space-2);">
-        <span class="badge badge-success text-xs" style="font-size: 10px; width: fit-content;">
-          🛡️ Sesi Administrator Aktif
-        </span>
-      </div>
-
       <nav class="sidebar-nav" id="sidebar-nav">
-        <span class="nav-label">Menu Administrasi</span>
+        <span class="nav-label">Menu Utama</span>
       </nav>
 
       <div class="sidebar-footer">
         <button class="btn btn-secondary btn-sm mb-3" id="btn-sidebar-logout" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--space-2);">
           <span>🚪</span>
-          <span>Logout Admin</span>
+          <span>Keluar</span>
         </button>
         <div class="sidebar-footer-info" id="sidebar-footer-info">
-          Tahun Ajaran ${school.tahunAjaran}<br>
-          <span style="opacity: 0.6">v1.4.0 • Secured Admin</span>
+          Tahun Ajaran ${school.tahunAjaran}
         </div>
       </div>
     `;
