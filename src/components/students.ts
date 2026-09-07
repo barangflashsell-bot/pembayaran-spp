@@ -6,7 +6,7 @@ import { createElement, showToast, showModal, closeModal, showConfirm } from '..
 import { formatRupiah } from '../utils/formatter';
 import { spreadsheetService } from '../services/spreadsheet';
 import { APP_CONFIG, MONTHS } from '../config/constants';
-import { exportStudentsToExcel, downloadStudentTemplateExcel, downloadStudentTemplateCsv, parseStudentCsv } from '../utils/export';
+import { exportStudentsToExcel, downloadStudentTemplateExcel, downloadStudentTemplateCsv, parseStudentFile } from '../utils/export';
 import { schoolService } from '../services/schoolService';
 import { buildSppReminderWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
 import type { Student, Payment, MonthName } from '../types';
@@ -419,7 +419,7 @@ function openImportStudentsModal(page: HTMLElement): void {
             </div>
             <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
               <button class="btn btn-primary btn-sm" id="btn-download-excel" style="font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; background: #16a34a; border-color: #16a34a;">
-                <span>📊</span> Unduh Excel (.xls)
+                <span>📊</span> Unduh Excel (.xlsx)
               </button>
               <button class="btn btn-secondary btn-sm" id="btn-download-csv" style="font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
                 <span>📄</span> Unduh CSV (.csv)
@@ -453,7 +453,7 @@ function openImportStudentsModal(page: HTMLElement): void {
               Klik untuk pilih file atau seret file ke sini
             </div>
             <div style="font-size: var(--font-size-xs); color: var(--color-text-muted);">
-              Mendukung file <strong>.xls (Excel)</strong>, <strong>.csv</strong>, atau <strong>.txt</strong>
+              Mendukung file <strong>.xlsx / .xls (Excel)</strong>, <strong>.csv</strong>, atau <strong>.txt</strong>
             </div>
             <div id="import-file-name" style="margin-top: var(--space-2); font-weight: 700; color: var(--color-primary-light); font-size: var(--font-size-sm); display: none;"></div>
           </div>
@@ -506,7 +506,7 @@ function openImportStudentsModal(page: HTMLElement): void {
   // Excel template download handler
   modalEl.querySelector('#btn-download-excel')?.addEventListener('click', () => {
     downloadStudentTemplateExcel(school.nominalSppDefault, school.namaSekolah);
-    showToast('Template Excel (.xls) berhasil diunduh! Buka langsung di Microsoft Excel.', 'success');
+    showToast('Template Excel (.xlsx) berhasil diunduh! Buka langsung di Microsoft Excel.', 'success');
   });
 
   // CSV template download handler
@@ -562,13 +562,13 @@ function openImportStudentsModal(page: HTMLElement): void {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (!content) {
+      const buffer = event.target?.result as ArrayBuffer;
+      if (!buffer) {
         showToast('File tidak memiliki konten', 'warning');
         return;
       }
 
-      const parseResult = parseStudentCsv(content, school.nominalSppDefault);
+      const parseResult = parseStudentFile(buffer, school.nominalSppDefault);
       parsedStudentsList = parseResult.valid;
 
       // Update UI
@@ -623,7 +623,7 @@ function openImportStudentsModal(page: HTMLElement): void {
       }
     };
 
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsArrayBuffer(file);
   }
 
   // Import button handler
