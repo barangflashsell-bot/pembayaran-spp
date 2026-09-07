@@ -31,10 +31,34 @@ export function renderPayment(): HTMLElement {
 
         <form id="payment-form">
           <div class="form-group">
-            <label class="form-label">Pilih Siswa *</label>
-            <select class="form-select" id="pay-student" required>
-              <option value="">-- Pilih Siswa --</option>
-            </select>
+            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Pilih Siswa *</span>
+              <span style="font-size: 11px; font-weight: normal; color: var(--color-text-muted);">Ketik nama siswa untuk mencari</span>
+            </label>
+            <div class="searchable-student-container" style="position: relative;">
+              <div style="position: relative; display: flex; align-items: center;">
+                <input 
+                  type="text" 
+                  class="form-input" 
+                  id="pay-student-search" 
+                  placeholder="🔍 Cari nama siswa, kelas, atau NIS..." 
+                  autocomplete="off"
+                  style="padding-right: 36px;"
+                >
+                <button 
+                  type="button" 
+                  id="pay-student-clear" 
+                  title="Hapus pilihan siswa"
+                  style="position: absolute; right: 10px; background: none; border: none; color: var(--color-text-muted); cursor: pointer; font-size: 14px; display: none; padding: 4px;"
+                >✕</button>
+              </div>
+              <input type="hidden" id="pay-student" required>
+              
+              <div 
+                id="pay-student-dropdown" 
+                style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow-y: auto; background: var(--color-bg-card, #1a2234); border: 1px solid var(--color-border); border-radius: var(--radius-md); z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.5);"
+              ></div>
+            </div>
           </div>
 
           <div class="form-group" id="student-info-box" style="display: none;">
@@ -115,12 +139,8 @@ export function renderPayment(): HTMLElement {
     </div>
   `;
 
-  // Load students into select
-  loadStudentOptions(page);
-
-  // Student change handler
-  const studentSelect = page.querySelector('#pay-student') as HTMLSelectElement;
-  studentSelect.addEventListener('change', () => onStudentSelect(page, studentSelect.value));
+  // Setup searchable student selector
+  setupStudentSearch(page);
 
   // Class filter for payment grid
   const kelasFilter = page.querySelector('#grid-filter-kelas') as HTMLSelectElement;
@@ -133,17 +153,15 @@ export function renderPayment(): HTMLElement {
   return page;
 }
 
-/** Load student options into select */
-async function loadStudentOptions(page: HTMLElement): Promise<void> {
-  const select = page.querySelector('#pay-student') as HTMLSelectElement;
+/** Setup searchable student dropdown */
+async function setupStudentSearch(page: HTMLElement): Promise<void> {
+  const searchInput = page.querySelector('#pay-student-search') as HTMLInputElement;
+  const hiddenInput = page.querySelector('#pay-student') as HTMLInputElement;
+  const clearBtn = page.querySelector('#pay-student-clear') as HTMLButtonElement;
+  const dropdown = page.querySelector('#pay-student-dropdown') as HTMLElement;
   const kelasFilter = page.querySelector('#grid-filter-kelas') as HTMLSelectElement;
-  const students = await spreadsheetService.getStudents();
 
-  students.forEach((s) => {
-    const option = createElement('option', { value: s.nis });
-    option.textContent = `${s.nama} — ${s.kelas} (${s.nis})`;
-    select.appendChild(option);
-  });
+  const students = await spreadsheetService.getStudents();
 
   if (kelasFilter) {
     const uniqueClasses = Array.from(new Set(students.map((s) => s.kelas).filter(Boolean))).sort();
@@ -152,6 +170,113 @@ async function loadStudentOptions(page: HTMLElement): Promise<void> {
       ${uniqueClasses.map((k) => `<option value="${k}">${k}</option>`).join('')}
     `;
   }
+
+  function renderList(query: string = '') {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? students.filter(
+          (s) =>
+            s.nama.toLowerCase().includes(q) ||
+            s.nis.toLowerCase().includes(q) ||
+            s.kelas.toLowerCase().includes(q)
+        )
+      : students;
+
+    if (filtered.length === 0) {
+      dropdown.innerHTML = `
+        <div style="padding: 14px; text-align: center; color: var(--color-text-muted); font-size: 13px;">
+          Siswa dengan nama atau NIS "<strong>${query}</strong>" tidak ditemukan
+        </div>
+      `;
+      return;
+    }
+
+    dropdown.innerHTML = filtered
+      .map(
+        (s) => `
+        <div 
+          class="student-dropdown-item" 
+          data-nis="${s.nis}" 
+          data-label="${s.nama} — ${s.kelas} (${s.nis})"
+          style="padding: 10px 14px; cursor: pointer; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: space-between; transition: background 0.15s ease;"
+        >
+          <div>
+            <div style="font-weight: 600; font-size: 13px; color: var(--color-text);">${s.nama}</div>
+            <div style="font-size: 11px; color: var(--color-text-muted);">NIS: ${s.nis} • Kelas ${s.kelas}</div>
+          </div>
+          <span class="badge badge-primary text-xs">${s.kelas}</span>
+        </div>
+      `
+      )
+      .join('');
+
+    // Add item click and hover listeners
+    dropdown.querySelectorAll('.student-dropdown-item').forEach((item) => {
+      const el = item as HTMLElement;
+      el.addEventListener('mouseenter', () => {
+        el.style.background = 'rgba(255, 255, 255, 0.08)';
+      });
+      el.addEventListener('mouseleave', () => {
+        el.style.background = 'transparent';
+      });
+      el.addEventListener('click', () => {
+        const nis = el.getAttribute('data-nis') || '';
+        const label = el.getAttribute('data-label') || '';
+        hiddenInput.value = nis;
+        searchInput.value = label;
+        clearBtn.style.display = 'block';
+        dropdown.style.display = 'none';
+        onStudentSelect(page, nis);
+      });
+    });
+  }
+
+  // Open dropdown on focus
+  searchInput.addEventListener('focus', () => {
+    dropdown.style.display = 'block';
+    renderList(searchInput.value.trim());
+  });
+
+  // Filter on input
+  searchInput.addEventListener('input', () => {
+    dropdown.style.display = 'block';
+    renderList(searchInput.value);
+    if (!searchInput.value.trim()) {
+      clearBtn.style.display = 'none';
+      if (hiddenInput.value) {
+        hiddenInput.value = '';
+        onStudentSelect(page, '');
+      }
+    } else {
+      clearBtn.style.display = 'block';
+    }
+  });
+
+  // Clear button click
+  clearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hiddenInput.value = '';
+    searchInput.value = '';
+    clearBtn.style.display = 'none';
+    dropdown.style.display = 'block';
+    renderList('');
+    onStudentSelect(page, '');
+    searchInput.focus();
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (!page.contains(target)) return;
+    const container = page.querySelector('.searchable-student-container');
+    if (container && !container.contains(target)) {
+      dropdown.style.display = 'none';
+      if (!hiddenInput.value) {
+        searchInput.value = '';
+        clearBtn.style.display = 'none';
+      }
+    }
+  });
 }
 
 /** Handle student selection */
@@ -288,7 +413,13 @@ async function handlePaymentSubmit(e: Event, page: HTMLElement): Promise<void> {
   const penerima = (page.querySelector('#pay-penerima') as HTMLInputElement)?.value.trim() || schoolService.getSchoolInfo().namaBendahara;
   const keterangan = (page.querySelector('#pay-keterangan') as HTMLTextAreaElement).value.trim();
 
-  if (!nis || !bulan || !tahun || !nominal) {
+  if (!nis) {
+    showToast('Mohon cari dan pilih siswa terlebih dahulu', 'warning');
+    (page.querySelector('#pay-student-search') as HTMLInputElement)?.focus();
+    return;
+  }
+
+  if (!bulan || !tahun || !nominal) {
     showToast('Mohon lengkapi semua field yang wajib', 'warning');
     return;
   }

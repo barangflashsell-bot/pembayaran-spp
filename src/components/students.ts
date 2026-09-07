@@ -286,8 +286,8 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
         <td style="font-weight: var(--font-weight-semibold);">${formatRupiah(s.nominalSpp)}</td>
         <td>
           <div style="display: flex; align-items: center; gap: 4px;">
-            <code style="font-size: 11px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); padding: 2px 6px; border-radius: var(--radius-sm); color: ${s.password ? '#a5b4fc' : 'var(--color-text-muted)'};" title="${s.password ? 'Password Khusus' : 'Password Default (Sama dengan NIS)'}">
-              ${s.password || s.nis}
+            <code style="font-size: 11px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); padding: 2px 6px; border-radius: var(--radius-sm); color: ${s.password ? '#a5b4fc' : 'var(--color-text-muted)'};" title="${s.password && s.password !== '12345678' ? 'Password Khusus' : 'Password Default: 12345678'}">
+              ${s.password || '12345678'}
             </code>
             <button class="btn btn-ghost btn-xs btn-manage-pass" data-nis="${s.nis}" title="Kelola / Reset Password Siswa" style="padding: 2px 4px; font-size: 12px; color: var(--color-primary-light);">
               🔑
@@ -402,8 +402,8 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
 
 /** Open modal to manage / reset student password */
 function openManagePasswordModal(page: HTMLElement, student: Student): void {
-  const currentPass = student.password || student.nis;
-  const isCustom = !!student.password && student.password !== student.nis;
+  const currentPass = student.password || '12345678';
+  const isCustom = !!student.password && student.password !== '12345678';
 
   const modalEl = createElement('div', {
     innerHTML: `
@@ -420,7 +420,7 @@ function openManagePasswordModal(page: HTMLElement, student: Student): void {
           <div style="display: flex; justify-content: space-between;">
             <span class="text-muted">Status Password:</span>
             <span class="badge ${isCustom ? 'badge-primary' : 'badge-secondary'} text-xs">
-              ${isCustom ? 'Password Khusus' : 'Default (Sama dengan NIS)'}
+              ${isCustom ? 'Password Khusus' : 'Default (12345678)'}
             </span>
           </div>
         </div>
@@ -457,7 +457,7 @@ function openManagePasswordModal(page: HTMLElement, student: Student): void {
               🔄 Menu Reset Cepat:
             </div>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-quick-reset-nis" style="width: 100%; font-size: 12px; font-weight: 600;">
-              🔄 Reset Password Kembali ke Default NIS (${student.nis})
+              🔄 Reset Password Kembali ke Default (12345678)
             </button>
           </div>
 
@@ -476,13 +476,13 @@ function openManagePasswordModal(page: HTMLElement, student: Student): void {
 
   modalEl.querySelector('#btn-cancel-pass')?.addEventListener('click', closeModal);
 
-  // Quick reset to NIS
+  // Quick reset to 12345678
   modalEl.querySelector('#btn-quick-reset-nis')?.addEventListener('click', async () => {
-    const confirmed = await showConfirm(`Reset password "${student.nama}" kembali ke default NIS (${student.nis})?`);
+    const confirmed = await showConfirm(`Reset password "${student.nama}" kembali ke default (12345678)?`);
     if (confirmed) {
-      const success = await spreadsheetService.updateStudent(student.nis, { password: student.nis });
+      const success = await spreadsheetService.updateStudent(student.nis, { password: '12345678' });
       if (success) {
-        showToast(`Password ${student.nama} berhasil direset ke ${student.nis}`, 'success');
+        showToast(`Password ${student.nama} berhasil direset ke 12345678`, 'success');
         closeModal();
         const searchInput = page.querySelector('#student-search') as HTMLInputElement;
         const filterKelas = page.querySelector('#student-filter-kelas') as HTMLSelectElement;
@@ -645,7 +645,7 @@ async function openStudentForm(page: HTMLElement, student?: Student): Promise<vo
             <label class="form-label">Password Siswa</label>
             <input type="text" class="form-input" id="form-password" 
               value="${student?.password ?? ''}" 
-              placeholder="Default: sama dengan NIS">
+              placeholder="Default: 12345678">
           </div>
         </div>
 

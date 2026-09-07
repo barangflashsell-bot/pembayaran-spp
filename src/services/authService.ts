@@ -116,13 +116,14 @@ class AuthService {
 
     // Jika parameter pass disediakan, cek kecocokan password
     if (pass !== undefined) {
-      const expectedPass = matched.password || matched.nis;
-      const isPasswordValid = pass === expectedPass || pass === matched.nis || pass === '123456';
+      const defaultPass = '12345678';
+      const expectedPass = matched.password || defaultPass;
+      const isPasswordValid = pass === expectedPass || pass === defaultPass || pass === matched.nis;
 
       if (!isPasswordValid) {
         return {
           success: false,
-          error: 'Password siswa salah! (Default: NIS siswa)',
+          error: 'Password siswa salah! (Default: 12345678)',
         };
       }
     }

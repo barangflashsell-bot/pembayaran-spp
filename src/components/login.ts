@@ -46,6 +46,9 @@ export function renderLogin(): HTMLElement {
             required
             autocomplete="current-password"
           >
+          <span style="font-size: 11px; color: var(--color-text-muted); margin-top: 4px; display: block;">
+            Password default siswa: <code>12345678</code>
+          </span>
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;" id="btn-submit-login">
