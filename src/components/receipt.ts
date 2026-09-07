@@ -107,6 +107,10 @@ export function buildReceiptHTML(payment: Payment): string {
           <span class="receipt-label">Metode Pembayaran</span>
           <span class="receipt-value">${getMethodLabel(payment.metodeBayar)}</span>
         </div>
+        <div class="receipt-row">
+          <span class="receipt-label">Diterima Oleh</span>
+          <span class="receipt-value"><strong>${payment.diterimaOleh || school.namaBendahara}</strong> (${payment.channel === 'online' ? 'Sistem Online' : 'Petugas Kasir'})</span>
+        </div>
 
         <!-- Rincian Item yang Dibayar -->
         <div class="receipt-items-section" style="margin-top: 10px; border-top: 1px dashed #bbb; padding-top: 8px;">
@@ -171,13 +175,15 @@ export function buildReceiptHTML(payment: Payment): string {
             <div style="font-size: 10px; color: #666;">NIP. ${school.nipKepalaSekolah}</div>
           </div>
 
-          <div style="width: 150px;">
+          <div style="width: 160px;">
             <div>Dicetak Pada: ${formatDate(payment.tanggalBayar)}</div>
-            <div style="font-weight: 600;">Bendahara / Kasir Sekolah</div>
+            <div style="font-weight: 600;">Penerima Pembayaran</div>
             <div style="margin-top: 42px; font-weight: 700; text-decoration: underline;">
-              ${school.namaBendahara}
+              ${payment.diterimaOleh || school.namaBendahara}
             </div>
-            <div style="font-size: 10px; color: #666;">Petugas Administrasi Keuangan</div>
+            <div style="font-size: 10px; color: #666;">
+              ${payment.channel === 'online' ? 'Sistem Otomatis / Bendahara' : 'Petugas Kasir / Tata Usaha'}
+            </div>
           </div>
         </div>
       </div>

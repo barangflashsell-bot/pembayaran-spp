@@ -64,6 +64,7 @@ Terima kasih, pembayaran administrasi sekolah telah berhasil diterima dan diveri
 🏷️ *NIS / Kelas:* ${payment.nis} / ${payment.kelas}
 💳 *Metode:* ${getMethodLabel(payment.metodeBayar)}
 🏢 *Channel:* ${payment.channel === 'online' ? 'Online (Portal Siswa)' : 'Kasir Administrasi Sekolah'}
+👤 *Diterima Oleh:* ${payment.diterimaOleh || school.namaBendahara}
 
 *Rincian Pos Tagihan:*
 ${itemsList}

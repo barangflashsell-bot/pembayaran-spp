@@ -8,6 +8,7 @@ import { spreadsheetService } from '../services/spreadsheet';
 import { APP_CONFIG, MONTHS } from '../config/constants';
 import { exportStudentsToExcel, downloadStudentTemplateExcel, downloadStudentTemplateCsv, parseStudentFile } from '../utils/export';
 import { schoolService } from '../services/schoolService';
+import { authService } from '../services/authService';
 import { buildSppReminderWhatsAppMessage, openWhatsAppChat } from '../utils/whatsapp';
 import type { Student, Payment, MonthName } from '../types';
 
@@ -122,11 +123,12 @@ export function renderStudents(): HTMLElement {
             <th>Orang Tua</th>
             <th>No. HP</th>
             <th>Nominal SPP</th>
-            <th>Aksi</th>
+            <th>Password</th>
+            <th style="text-align: center;">Aksi</th>
           </tr>
         </thead>
         <tbody id="students-tbody">
-          <tr><td colspan="8" class="text-center text-muted" style="padding: var(--space-8);">Memuat data...</td></tr>
+          <tr><td colspan="9" class="text-center text-muted" style="padding: var(--space-8);">Memuat data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -256,7 +258,7 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
     if (students.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="8">
+          <td colspan="9">
             <div class="empty-state">
               <div class="empty-state-icon">👨‍🎓</div>
               <div class="empty-state-title">Belum Ada Siswa</div>
@@ -283,7 +285,20 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
         <td>${s.noHp}</td>
         <td style="font-weight: var(--font-weight-semibold);">${formatRupiah(s.nominalSpp)}</td>
         <td>
-          <div style="display: flex; gap: var(--space-2);">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <code style="font-size: 11px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border); padding: 2px 6px; border-radius: var(--radius-sm); color: ${s.password ? '#a5b4fc' : 'var(--color-text-muted)'};" title="${s.password ? 'Password Khusus' : 'Password Default (Sama dengan NIS)'}">
+              ${s.password || s.nis}
+            </code>
+            <button class="btn btn-ghost btn-xs btn-manage-pass" data-nis="${s.nis}" title="Kelola / Reset Password Siswa" style="padding: 2px 4px; font-size: 12px; color: var(--color-primary-light);">
+              🔑
+            </button>
+          </div>
+        </td>
+        <td>
+          <div style="display: flex; gap: var(--space-2); align-items: center; justify-content: center;">
+            <button class="btn btn-primary btn-sm btn-login-student" data-nis="${s.nis}" title="Masuk Langsung Sebagai Siswa Ini (Buka Portal Siswa)" style="font-size: 11px; font-weight: 600; background: #6366f1; border-color: #6366f1; color: white; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+              <span>🚪</span> Masuk Siswa
+            </button>
             <button class="btn btn-ghost btn-sm btn-remind-wa" data-nis="${s.nis}" title="Kirim Pengingat Tagihan SPP via WhatsApp" style="color: #25d366;">📲</button>
             <button class="btn btn-ghost btn-sm btn-edit-student" data-nis="${s.nis}" title="Edit">✏️</button>
             <button class="btn btn-ghost btn-sm btn-delete-student" data-nis="${s.nis}" title="Hapus">🗑️</button>
@@ -314,6 +329,28 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
           }
         }
         updateBulkBar(page);
+      });
+    });
+
+    // Direct Login as Student
+    tbody.querySelectorAll('.btn-login-student').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nis = btn.getAttribute('data-nis')!;
+        const student = students.find((s) => s.nis === nis);
+        if (!student) return;
+
+        authService.loginDirectlyAsStudent(student);
+        showToast(`Masuk sebagai ${student.nama} (${student.nis})`, 'success');
+        window.location.hash = '#/portal';
+      });
+    });
+
+    // Manage / Reset Password
+    tbody.querySelectorAll('.btn-manage-pass').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nis = btn.getAttribute('data-nis')!;
+        const student = students.find((s) => s.nis === nis);
+        if (student) openManagePasswordModal(page, student);
       });
     });
 
@@ -358,9 +395,124 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
   } catch (error) {
     console.error('Error loading students:', error);
     tbody.innerHTML = `
-      <tr><td colspan="8" class="text-center text-danger" style="padding: var(--space-8);">Error memuat data siswa</td></tr>
+      <tr><td colspan="9" class="text-center text-danger" style="padding: var(--space-8);">Error memuat data siswa</td></tr>
     `;
   }
+}
+
+/** Open modal to manage / reset student password */
+function openManagePasswordModal(page: HTMLElement, student: Student): void {
+  const currentPass = student.password || student.nis;
+  const isCustom = !!student.password && student.password !== student.nis;
+
+  const modalEl = createElement('div', {
+    innerHTML: `
+      <div style="display: flex; flex-direction: column; gap: var(--space-4); max-width: 480px;">
+        <div style="background: var(--color-bg-glass); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); font-size: var(--font-size-sm);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span class="text-muted">Nama Siswa:</span>
+            <strong>${student.nama}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span class="text-muted">NIS / Kelas:</span>
+            <span><code>${student.nis}</code> (${student.kelas})</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span class="text-muted">Status Password:</span>
+            <span class="badge ${isCustom ? 'badge-primary' : 'badge-secondary'} text-xs">
+              ${isCustom ? 'Password Khusus' : 'Default (Sama dengan NIS)'}
+            </span>
+          </div>
+        </div>
+
+        <form id="form-manage-password">
+          <div class="form-group mb-3">
+            <label class="form-label" style="font-weight: 700;">Password Aktif Saat Ini</label>
+            <input 
+              type="text" 
+              class="form-input" 
+              id="input-current-pass" 
+              value="${currentPass}" 
+              readonly 
+              style="font-family: monospace; font-weight: 700; background: rgba(0,0,0,0.25);"
+            >
+          </div>
+
+          <div class="form-group mb-4">
+            <label class="form-label" style="font-weight: 700;">Ubah Menjadi Password Baru</label>
+            <input 
+              type="text" 
+              class="form-input" 
+              id="input-new-pass" 
+              placeholder="Ketik password baru siswa" 
+              autocomplete="off"
+            >
+            <span style="font-size: 11px; color: var(--color-text-muted);">
+              Password ini digunakan siswa untuk login di portal siswa mandiri.
+            </span>
+          </div>
+
+          <div style="background: rgba(99, 102, 241, 0.08); border: 1px dashed rgba(99, 102, 241, 0.3); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-4);">
+            <div style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-primary-light); margin-bottom: 6px;">
+              🔄 Menu Reset Cepat:
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-quick-reset-nis" style="width: 100%; font-size: 12px; font-weight: 600;">
+              🔄 Reset Password Kembali ke Default NIS (${student.nis})
+            </button>
+          </div>
+
+          <div style="display: flex; gap: var(--space-2); justify-content: flex-end; border-top: 1px solid var(--color-border); padding-top: var(--space-3);">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-pass">Batal</button>
+            <button type="submit" class="btn btn-primary" style="font-weight: 600;">
+              💾 Simpan Password Baru
+            </button>
+          </div>
+        </form>
+      </div>
+    `
+  });
+
+  showModal(`🔑 Kelola Password — ${student.nama}`, modalEl);
+
+  modalEl.querySelector('#btn-cancel-pass')?.addEventListener('click', closeModal);
+
+  // Quick reset to NIS
+  modalEl.querySelector('#btn-quick-reset-nis')?.addEventListener('click', async () => {
+    const confirmed = await showConfirm(`Reset password "${student.nama}" kembali ke default NIS (${student.nis})?`);
+    if (confirmed) {
+      const success = await spreadsheetService.updateStudent(student.nis, { password: student.nis });
+      if (success) {
+        showToast(`Password ${student.nama} berhasil direset ke ${student.nis}`, 'success');
+        closeModal();
+        const searchInput = page.querySelector('#student-search') as HTMLInputElement;
+        const filterKelas = page.querySelector('#student-filter-kelas') as HTMLSelectElement;
+        loadStudentTable(page, searchInput?.value || '', filterKelas?.value || '');
+      } else {
+        showToast('Gagal mereset password', 'error');
+      }
+    }
+  });
+
+  // Submit custom new password
+  modalEl.querySelector('#form-manage-password')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPass = (modalEl.querySelector('#input-new-pass') as HTMLInputElement).value.trim();
+    if (!newPass) {
+      showToast('Masukkan password baru terlebih dahulu', 'warning');
+      return;
+    }
+
+    const success = await spreadsheetService.updateStudent(student.nis, { password: newPass });
+    if (success) {
+      showToast(`Password ${student.nama} berhasil diperbarui!`, 'success');
+      closeModal();
+      const searchInput = page.querySelector('#student-search') as HTMLInputElement;
+      const filterKelas = page.querySelector('#student-filter-kelas') as HTMLSelectElement;
+      loadStudentTable(page, searchInput?.value || '', filterKelas?.value || '');
+    } else {
+      showToast('Gagal memperbarui password', 'error');
+    }
+  });
 }
 
 /** Show WhatsApp SPP reminder dialog */

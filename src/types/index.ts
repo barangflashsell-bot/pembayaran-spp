@@ -96,6 +96,7 @@ export interface Payment {
   channel?: PaymentChannel;
   items?: PaymentItemDetail[];
   rincianItemText?: string;
+  diterimaOleh?: string;
 }
 
 /** Statistik dashboard */

@@ -354,6 +354,7 @@ function showItemizedDetailModal(payment: Payment): void {
         <div><strong>ID Transaksi:</strong> <code>${payment.idTransaksi}</code></div>
         <div><strong>Tanggal Bayar:</strong> ${formatDate(payment.tanggalBayar)}</div>
         <div><strong>Metode:</strong> ${getMethodLabel(payment.metodeBayar)}</div>
+        <div><strong>Diterima Oleh:</strong> ${payment.diterimaOleh || 'Kasir / Bendahara'}</div>
         ${payment.keterangan ? `<div><strong>Catatan:</strong> ${payment.keterangan}</div>` : ''}
       </div>
 

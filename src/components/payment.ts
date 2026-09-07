@@ -8,11 +8,13 @@ import { spreadsheetService } from '../services/spreadsheet';
 import { notificationService } from '../services/notification';
 import { MONTHS, PAYMENT_METHODS } from '../config/constants';
 import { renderReceipt } from './receipt';
+import { schoolService } from '../services/schoolService';
 import type { Payment, PaymentMethod, MonthName, Student } from '../types';
 
 /** Render payment page */
 export function renderPayment(): HTMLElement {
   const page = createElement('div', { className: 'page-enter' });
+  const school = schoolService.getSchoolInfo();
 
   page.innerHTML = `
     <div class="page-header">
@@ -75,6 +77,12 @@ export function renderPayment(): HTMLElement {
                 ${PAYMENT_METHODS.map((m) => `<option value="${m.value}">${m.label}</option>`).join('')}
               </select>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Penerima Pembayaran (Kasir / Petugas TU) *</label>
+            <input type="text" class="form-input" id="pay-penerima" value="${school.namaBendahara}" placeholder="Nama petugas penerima pembayaran" required>
+            <span style="font-size: 11px; color: var(--color-text-muted);">Nama ini akan tercantum di kuitansi resmi sebagai pihak yang menerima setoran.</span>
           </div>
 
           <div class="form-group">
@@ -277,6 +285,7 @@ async function handlePaymentSubmit(e: Event, page: HTMLElement): Promise<void> {
   const nominal = Number((page.querySelector('#pay-nominal') as HTMLInputElement).value);
   const tanggal = (page.querySelector('#pay-tanggal') as HTMLInputElement).value || toISODate();
   const metode = (page.querySelector('#pay-metode') as HTMLSelectElement).value as PaymentMethod;
+  const penerima = (page.querySelector('#pay-penerima') as HTMLInputElement)?.value.trim() || schoolService.getSchoolInfo().namaBendahara;
   const keterangan = (page.querySelector('#pay-keterangan') as HTMLTextAreaElement).value.trim();
 
   if (!nis || !bulan || !tahun || !nominal) {
@@ -302,6 +311,8 @@ async function handlePaymentSubmit(e: Event, page: HTMLElement): Promise<void> {
     metodeBayar: metode,
     status: 'lunas',
     keterangan,
+    channel: 'admin',
+    diterimaOleh: penerima,
   };
 
   const success = await spreadsheetService.addPayment(payment);

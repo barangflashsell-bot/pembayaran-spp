@@ -72,6 +72,29 @@ class AuthService {
     return { success: true };
   }
 
+  /** Login langsung sebagai Admin (misal saat admin kembali dari pratinjau portal siswa) */
+  loginAsAdminDirectly(): void {
+    const session: AuthSession = {
+      role: 'admin',
+      username: 'admin',
+      loginTime: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
+    window.dispatchEvent(new CustomEvent('app:auth-changed', { detail: session }));
+  }
+
+  /** Login langsung sebagai Siswa oleh Admin (Akses langsung / Impersonate) */
+  loginDirectlyAsStudent(student: Student): void {
+    const session: AuthSession = {
+      role: 'siswa',
+      username: student.nis,
+      student,
+      loginTime: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
+    window.dispatchEvent(new CustomEvent('app:auth-changed', { detail: session }));
+  }
+
   /** Login sebagai Siswa (lewat Nama atau NIS beserta Password) */
   async loginAsStudent(nisOrName: string, pass?: string): Promise<{ success: boolean; student?: Student; error?: string }> {
     const query = nisOrName.trim().toLowerCase();

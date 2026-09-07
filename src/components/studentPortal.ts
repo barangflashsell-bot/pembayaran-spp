@@ -90,9 +90,14 @@ export function renderStudentPortal(): HTMLElement {
               <div class="profile-meta" id="session-student-meta">NIS: - • Kelas: - • Wali: -</div>
             </div>
           </div>
-          <button class="btn btn-secondary btn-sm" id="btn-switch-student">
-            🚪 Keluar / Ganti Siswa
-          </button>
+          <div style="display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" id="btn-back-to-admin" style="font-size: 11px; font-weight: 600; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #fff;">
+              ⬅️ Kembali ke Admin
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-switch-student">
+              🚪 Keluar / Ganti Siswa
+            </button>
+          </div>
         </div>
 
         <!-- Portal Tabs Navigation -->
@@ -351,6 +356,13 @@ export function renderStudentPortal(): HTMLElement {
   // Handle Switch Student / Logout
   btnSwitch.addEventListener('click', () => {
     logoutStudent();
+  });
+
+  // Handle Return to Admin
+  container.querySelector('#btn-back-to-admin')?.addEventListener('click', () => {
+    authService.loginAsAdminDirectly();
+    showToast('Kembali ke Dashboard Admin', 'info');
+    window.location.hash = '#/siswa';
   });
 
   // Handle Tab Switching
