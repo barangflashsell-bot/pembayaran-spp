@@ -12,6 +12,39 @@ import { buildSppReminderWhatsAppMessage, openWhatsAppChat } from '../utils/what
 import type { Student, Payment, MonthName } from '../types';
 
 let currentDisplayedStudents: Student[] = [];
+const selectedNisSet = new Set<string>();
+
+/** Update bulk selection bar and check-all state */
+function updateBulkBar(page: HTMLElement): void {
+  const bulkBar = page.querySelector('#bulk-action-bar') as HTMLElement | null;
+  const countLabel = page.querySelector('#bulk-selected-count') as HTMLElement | null;
+  const checkAll = page.querySelector('#check-all-students') as HTMLInputElement | null;
+  const btnToggle = page.querySelector('#btn-toggle-mark-all') as HTMLElement | null;
+
+  if (!bulkBar || !countLabel) return;
+
+  const count = selectedNisSet.size;
+  if (count > 0) {
+    bulkBar.style.display = 'flex';
+    countLabel.textContent = `${count} Siswa Ditandai`;
+    if (btnToggle) btnToggle.innerHTML = `<span>☑️</span> Ditandai (${count})`;
+  } else {
+    bulkBar.style.display = 'none';
+    if (btnToggle) btnToggle.innerHTML = `<span>☑️</span> Tandai Siswa`;
+  }
+
+  if (checkAll) {
+    if (currentDisplayedStudents.length > 0) {
+      const allChecked = currentDisplayedStudents.every((s) => selectedNisSet.has(s.nis));
+      const someChecked = currentDisplayedStudents.some((s) => selectedNisSet.has(s.nis));
+      checkAll.checked = allChecked;
+      checkAll.indeterminate = !allChecked && someChecked;
+    } else {
+      checkAll.checked = false;
+      checkAll.indeterminate = false;
+    }
+  }
+}
 
 /** Render students page */
 export function renderStudents(): HTMLElement {
@@ -24,11 +57,33 @@ export function renderStudents(): HTMLElement {
         <p class="page-description">Kelola data siswa yang terdaftar & status kontak wali murid</p>
       </div>
       <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+        <button class="btn btn-secondary" id="btn-toggle-mark-all" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+          <span>☑️</span> Tandai Siswa
+        </button>
         <button class="btn btn-secondary" id="btn-import-students" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
           <span>📥</span> Import Excel / CSV
         </button>
         <button class="btn btn-secondary" id="btn-export-students" style="font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
           <span>📊</span> Export Excel / CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Bulk Action Bar for Marked Students -->
+    <div id="bulk-action-bar" style="display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-md); padding: 12px 18px; margin-bottom: var(--space-4); animation: fadeIn 0.2s ease;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">☑️</span>
+        <div>
+          <span style="font-weight: 700; color: #fca5a5; font-size: var(--font-size-sm);" id="bulk-selected-count">0 Siswa Ditandai</span>
+          <span style="font-size: var(--font-size-xs); color: var(--color-text-muted); margin-left: 8px;">Siswa yang ditandai siap untuk dihapus bersamaan</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: var(--space-2); align-items: center;">
+        <button class="btn btn-secondary btn-sm" id="btn-cancel-bulk-select" style="font-size: var(--font-size-xs);">
+          Batal Tandai
+        </button>
+        <button class="btn btn-danger btn-sm" id="btn-bulk-delete" style="font-weight: 700; font-size: var(--font-size-xs); background: #ef4444; border-color: #ef4444; color: white; display: inline-flex; align-items: center; gap: 6px;">
+          <span>🗑️</span> Hapus Siswa Ditandai
         </button>
       </div>
     </div>
@@ -52,6 +107,9 @@ export function renderStudents(): HTMLElement {
       <table class="data-table" id="students-table">
         <thead>
           <tr>
+            <th style="width: 44px; text-align: center;">
+              <input type="checkbox" id="check-all-students" title="Tandai / Batalkan Semua" style="cursor: pointer; accent-color: #ef4444; width: 16px; height: 16px; vertical-align: middle;">
+            </th>
             <th>NIS</th>
             <th>Nama Siswa</th>
             <th>Kelas</th>
@@ -62,7 +120,7 @@ export function renderStudents(): HTMLElement {
           </tr>
         </thead>
         <tbody id="students-tbody">
-          <tr><td colspan="7" class="text-center text-muted" style="padding: var(--space-8);">Memuat data...</td></tr>
+          <tr><td colspan="8" class="text-center text-muted" style="padding: var(--space-8);">Memuat data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -72,6 +130,57 @@ export function renderStudents(): HTMLElement {
   const searchInput = page.querySelector('#student-search') as HTMLInputElement;
   const filterKelas = page.querySelector('#student-filter-kelas') as HTMLSelectElement;
   const addBtn = page.querySelector('#btn-add-student') as HTMLButtonElement;
+
+  // Toggle mark all currently visible students
+  page.querySelector('#btn-toggle-mark-all')?.addEventListener('click', () => {
+    if (currentDisplayedStudents.length === 0) {
+      showToast('Tidak ada data siswa untuk ditandai', 'warning');
+      return;
+    }
+    const allSelected = currentDisplayedStudents.every((s) => selectedNisSet.has(s.nis));
+    if (allSelected) {
+      currentDisplayedStudents.forEach((s) => selectedNisSet.delete(s.nis));
+    } else {
+      currentDisplayedStudents.forEach((s) => selectedNisSet.add(s.nis));
+    }
+    loadStudentTable(page, searchInput.value, filterKelas.value);
+  });
+
+  // Check-all checkbox in table header
+  page.querySelector('#check-all-students')?.addEventListener('change', (e) => {
+    const checkAll = e.target as HTMLInputElement;
+    const shouldCheck = checkAll.checked;
+    currentDisplayedStudents.forEach((s) => {
+      if (shouldCheck) {
+        selectedNisSet.add(s.nis);
+      } else {
+        selectedNisSet.delete(s.nis);
+      }
+    });
+    loadStudentTable(page, searchInput.value, filterKelas.value);
+  });
+
+  // Cancel bulk selection
+  page.querySelector('#btn-cancel-bulk-select')?.addEventListener('click', () => {
+    selectedNisSet.clear();
+    loadStudentTable(page, searchInput.value, filterKelas.value);
+  });
+
+  // Execute bulk delete
+  page.querySelector('#btn-bulk-delete')?.addEventListener('click', async () => {
+    if (selectedNisSet.size === 0) return;
+    const count = selectedNisSet.size;
+    const confirmed = await showConfirm(
+      `Yakin ingin menghapus ${count} data siswa yang ditandai? Tindakan ini tidak dapat dibatalkan.`
+    );
+    if (confirmed) {
+      const list = Array.from(selectedNisSet);
+      const deleted = await spreadsheetService.deleteStudents(list);
+      selectedNisSet.clear();
+      showToast(`Berhasil menghapus ${deleted} data siswa!`, 'success');
+      loadStudentTable(page, searchInput.value, filterKelas.value);
+    }
+  });
 
   // Export Excel handler
   page.querySelector('#btn-export-students')?.addEventListener('click', () => {
@@ -133,7 +242,7 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
     if (students.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7">
+          <td colspan="8">
             <div class="empty-state">
               <div class="empty-state-icon">👨‍🎓</div>
               <div class="empty-state-title">Belum Ada Siswa</div>
@@ -142,11 +251,17 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
           </td>
         </tr>
       `;
+      updateBulkBar(page);
       return;
     }
 
-    tbody.innerHTML = students.map((s) => `
-      <tr>
+    tbody.innerHTML = students.map((s) => {
+      const isChecked = selectedNisSet.has(s.nis);
+      return `
+      <tr class="${isChecked ? 'row-marked-delete' : ''}" style="${isChecked ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;' : ''}">
+        <td style="text-align: center; vertical-align: middle;">
+          <input type="checkbox" class="student-checkbox" data-nis="${s.nis}" ${isChecked ? 'checked' : ''} style="cursor: pointer; accent-color: #ef4444; width: 16px; height: 16px; vertical-align: middle;">
+        </td>
         <td><code style="font-size: var(--font-size-xs); background: var(--color-bg-glass); padding: 2px 6px; border-radius: var(--radius-sm);">${s.nis}</code></td>
         <td style="font-weight: var(--font-weight-semibold);">${s.nama}</td>
         <td><span class="badge badge-info">${s.kelas}</span></td>
@@ -161,7 +276,32 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
           </div>
         </td>
       </tr>
-    `).join('');
+    `}).join('');
+
+    // Update bulk bar counts and states
+    updateBulkBar(page);
+
+    // Bind row checkbox events
+    tbody.querySelectorAll<HTMLInputElement>('.student-checkbox').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const nis = cb.getAttribute('data-nis')!;
+        const row = cb.closest('tr');
+        if (cb.checked) {
+          selectedNisSet.add(nis);
+          if (row) {
+            row.style.background = 'rgba(239, 68, 68, 0.08)';
+            row.style.borderLeft = '3px solid #ef4444';
+          }
+        } else {
+          selectedNisSet.delete(nis);
+          if (row) {
+            row.style.background = '';
+            row.style.borderLeft = '';
+          }
+        }
+        updateBulkBar(page);
+      });
+    });
 
     // Bind row action buttons
     tbody.querySelectorAll('.btn-remind-wa').forEach((btn) => {
@@ -190,8 +330,11 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
         if (confirmed) {
           const success = await spreadsheetService.deleteStudent(nis);
           if (success) {
+            selectedNisSet.delete(nis);
             showToast(`Data siswa ${student.nama} berhasil dihapus`, 'success');
-            loadStudentTable(page);
+            const searchInput = page.querySelector('#student-search') as HTMLInputElement;
+            const filterKelas = page.querySelector('#student-filter-kelas') as HTMLSelectElement;
+            loadStudentTable(page, searchInput?.value || '', filterKelas?.value || '');
           } else {
             showToast('Gagal menghapus data siswa', 'error');
           }
@@ -201,7 +344,7 @@ async function loadStudentTable(page: HTMLElement, search: string = '', kelas: s
   } catch (error) {
     console.error('Error loading students:', error);
     tbody.innerHTML = `
-      <tr><td colspan="7" class="text-center text-danger" style="padding: var(--space-8);">Error memuat data siswa</td></tr>
+      <tr><td colspan="8" class="text-center text-danger" style="padding: var(--space-8);">Error memuat data siswa</td></tr>
     `;
   }
 }

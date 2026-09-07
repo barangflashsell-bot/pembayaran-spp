@@ -226,6 +226,26 @@ class SpreadsheetService {
     return true;
   }
 
+  /** Delete multiple students by NIS list */
+  async deleteStudents(nisList: string[]): Promise<number> {
+    if (nisList.length === 0) return 0;
+    const toDelete = new Set(nisList);
+
+    if (this.useApi) {
+      try {
+        await this.apiPost('deleteStudents', { nisList });
+      } catch (e) {
+        console.warn('API sync deleteStudents failed:', e);
+      }
+    }
+
+    const students = this.getLocal<Student>(STORAGE_KEYS.STUDENTS);
+    const filtered = students.filter((s) => !toDelete.has(s.nis));
+    const deletedCount = students.length - filtered.length;
+    this.setLocal(STORAGE_KEYS.STUDENTS, filtered);
+    return deletedCount;
+  }
+
   /** Get student by NIS */
   async getStudentByNis(nis: string): Promise<Student | undefined> {
     const students = await this.getStudents();
