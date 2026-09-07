@@ -2,7 +2,8 @@
    Design Tokens & CSS Custom Properties
    ========================================== */
 
-:root {
+:root,
+[data-theme="dark"] {
   /* ---- Color Palette (Dark Theme) ---- */
   --color-bg-primary: #0a0e1a;
   --color-bg-secondary: #111827;
@@ -11,10 +12,16 @@
   --color-bg-glass: rgba(255, 255, 255, 0.05);
   --color-bg-input: rgba(255, 255, 255, 0.07);
   --color-bg-modal: rgba(0, 0, 0, 0.7);
+  --color-bg-dark: #0f172a;
   
   --color-surface-1: #1e293b;
   --color-surface-2: #293548;
   --color-surface-3: #334155;
+
+  /* ---- Table States ---- */
+  --color-table-header: rgba(255, 255, 255, 0.03);
+  --color-table-hover: rgba(255, 255, 255, 0.03);
+  --color-code-bg: rgba(255, 255, 255, 0.06);
 
   /* ---- Accent Colors ---- */
   --color-primary: #6366f1;
@@ -132,4 +139,85 @@
   --gradient-danger: linear-gradient(135deg, #ef4444, #f97316);
   --gradient-card: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8));
   --gradient-sidebar: linear-gradient(180deg, #111827, #0a0e1a);
+}
+
+/* ==========================================
+   Light Mode Theme Overrides
+   ========================================== */
+[data-theme="light"] {
+  /* ---- Color Palette (Light Theme) ---- */
+  --color-bg-primary: #f8fafc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f1f5f9;
+  --color-bg-glass: rgba(0, 0, 0, 0.04);
+  --color-bg-input: #ffffff;
+  --color-bg-modal: rgba(15, 23, 42, 0.5);
+  --color-bg-dark: #f1f5f9;
+  
+  --color-surface-1: #ffffff;
+  --color-surface-2: #f1f5f9;
+  --color-surface-3: #e2e8f0;
+
+  /* ---- Table States ---- */
+  --color-table-header: #f8fafc;
+  --color-table-hover: #f1f5f9;
+  --color-code-bg: #e2e8f0;
+
+  /* ---- Accent Colors ---- */
+  --color-primary: #4f46e5;
+  --color-primary-light: #6366f1;
+  --color-primary-dark: #3730a3;
+  --color-primary-glow: rgba(79, 70, 229, 0.2);
+
+  --color-secondary: #0891b2;
+  --color-secondary-light: #06b6d4;
+
+  --color-accent: #db2777;
+  --color-accent-light: #f472b6;
+
+  /* ---- Semantic Colors ---- */
+  --color-success: #059669;
+  --color-success-light: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+
+  --color-warning: #d97706;
+  --color-warning-light: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+
+  --color-danger: #dc2626;
+  --color-danger-light: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+
+  --color-info: #2563eb;
+  --color-info-light: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+
+  /* ---- Text Colors ---- */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #ffffff;
+
+  /* ---- Border Colors ---- */
+  --color-border: #e2e8f0;
+  --color-border-light: #cbd5e1;
+  --color-border-focus: var(--color-primary);
+
+  /* ---- Shadows ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.09), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 20px var(--color-primary-glow);
+  --shadow-card: 0 2px 14px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  /* ---- Gradients ---- */
+  --gradient-primary: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --gradient-secondary: linear-gradient(135deg, #0891b2, #2563eb);
+  --gradient-accent: linear-gradient(135deg, #db2777, #9333ea);
+  --gradient-success: linear-gradient(135deg, #059669, #0891b2);
+  --gradient-danger: linear-gradient(135deg, #dc2626, #ea580c);
+  --gradient-card: linear-gradient(180deg, #ffffff, #fcfcfd);
+  --gradient-sidebar: linear-gradient(180deg, #ffffff, #f8fafc);
 }

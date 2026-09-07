@@ -5,6 +5,7 @@
 import { router } from './utils/router';
 import { $ } from './utils/dom';
 import { renderSidebar, renderMobileMenuBtn, renderSidebarOverlay, updateActiveNav } from './components/sidebar';
+import { renderFloatingThemeToggle } from './components/themeToggle';
 import { renderDashboard } from './components/dashboard';
 import { renderStudents } from './components/students';
 import { renderPayment } from './components/payment';
@@ -82,6 +83,7 @@ export function initApp(): void {
   app.appendChild(renderMobileMenuBtn());
   app.appendChild(renderSidebarOverlay());
   app.appendChild(renderSidebar());
+  app.appendChild(renderFloatingThemeToggle());
 
   // Main content container
   const main = document.createElement('main');

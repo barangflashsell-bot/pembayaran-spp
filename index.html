@@ -7,6 +7,18 @@
   <meta name="theme-color" content="#0a0e1a" />
   <title>SPP Payment — Aplikasi Pembayaran SPP Sekolah</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏫</text></svg>" />
+  <script>
+    (function() {
+      var t = localStorage.getItem('spp_theme_preference');
+      if (t === 'light' || t === 'dark') {
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+    })();
+  </script>
 </head>
 <body>
   <div id="app"></div>

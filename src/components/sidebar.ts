@@ -7,6 +7,7 @@ import { router } from '../utils/router';
 import { notificationService } from '../services/notification';
 import { schoolService } from '../services/schoolService';
 import { authService } from '../services/authService';
+import { themeService } from '../services/themeService';
 import { formatDateShort } from '../utils/formatter';
 
 /** Render sidebar */
@@ -50,15 +51,23 @@ export function renderSidebar(): HTMLElement {
         </nav>
 
         <div class="sidebar-footer">
+          <button type="button" class="sidebar-theme-btn mb-2" id="btn-sidebar-theme" title="Ubah Mode Tampilan (Cerah / Gelap)">
+            <span>${themeService.isLight() ? '🌙' : '☀️'}</span>
+            <span>${themeService.isLight() ? 'Mode Gelap' : 'Mode Cerah'}</span>
+          </button>
           <button class="btn btn-secondary btn-sm" id="btn-sidebar-logout" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--space-2);">
             <span>🚪</span>
             <span>Keluar</span>
           </button>
-          <div class="sidebar-footer-info mt-3" style="text-align: center; font-size: 10px;">
+          <div class="sidebar-footer-info mt-2" style="text-align: center; font-size: 10px;">
             ${school.namaSekolah}
           </div>
         </div>
       `;
+
+      sidebar.querySelector('#btn-sidebar-theme')?.addEventListener('click', () => {
+        themeService.toggleTheme();
+      });
 
       sidebar.querySelector('#btn-sidebar-logout')?.addEventListener('click', () => {
         authService.logout();
@@ -90,6 +99,10 @@ export function renderSidebar(): HTMLElement {
       </nav>
 
       <div class="sidebar-footer">
+        <button type="button" class="sidebar-theme-btn mb-2" id="btn-sidebar-theme" title="Ubah Mode Tampilan (Cerah / Gelap)">
+          <span>${themeService.isLight() ? '🌙' : '☀️'}</span>
+          <span>${themeService.isLight() ? 'Mode Gelap' : 'Mode Cerah'}</span>
+        </button>
         <button class="btn btn-secondary btn-sm mb-3" id="btn-sidebar-logout" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--space-2);">
           <span>🚪</span>
           <span>Keluar</span>
@@ -99,6 +112,10 @@ export function renderSidebar(): HTMLElement {
         </div>
       </div>
     `;
+
+    sidebar.querySelector('#btn-sidebar-theme')?.addEventListener('click', () => {
+      themeService.toggleTheme();
+    });
 
     // Render Admin nav links
     const nav = sidebar.querySelector('#sidebar-nav')!;
@@ -188,6 +205,17 @@ export function renderSidebar(): HTMLElement {
         bellBadge.style.display = 'flex';
         bellBtn.classList.add('has-unread');
       }
+    }
+  });
+
+  window.addEventListener('app:theme-changed', () => {
+    const btn = sidebar.querySelector('#btn-sidebar-theme');
+    if (btn) {
+      const isLight = themeService.isLight();
+      btn.innerHTML = `
+        <span>${isLight ? '🌙' : '☀️'}</span>
+        <span>${isLight ? 'Mode Gelap' : 'Mode Cerah'}</span>
+      `;
     }
   });
 

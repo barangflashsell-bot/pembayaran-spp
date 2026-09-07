@@ -232,7 +232,7 @@
 .form-textarea:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-glow);
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--color-bg-input);
 }
 
 .form-input::placeholder {
@@ -288,7 +288,7 @@
 }
 
 .data-table thead {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-table-header);
 }
 
 .data-table th {
@@ -315,7 +315,7 @@
 }
 
 .data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-table-hover);
 }
 
 .data-table tbody tr:last-child td {
@@ -1570,5 +1570,75 @@
   box-shadow: var(--shadow-lg);
   border-color: var(--color-primary-light);
 }
+
+/* ==========================================
+   Theme Switcher (Cerah / Gelap)
+   ========================================== */
+.floating-theme-btn {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  z-index: 120;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(16px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.floating-theme-btn:hover {
+  border-color: var(--color-primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.floating-theme-btn .theme-icon {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-theme-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-glass);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-theme-btn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-light);
+}
+
+.theme-pill-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--color-primary-light);
+}
+
 
 
